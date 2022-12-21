@@ -1,0 +1,9 @@
+*.mat
+*.m~
+*.asv
+*.png
+.vscode/
+
+
+data/segmentation
+data/skeleton
