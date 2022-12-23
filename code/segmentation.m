@@ -430,11 +430,17 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
 
     disp(['main trunk refine range: ' num2str(main_trunk_refine_range)]);
 
+    %%---------------------------------------------------------%%
+    %%-------------------Branch Root Cluster-------------------%%
+    %% sphere pruning centering at trunk points 
+    %% run clustering on pruned branch root points
+    %%---------------------------------------------------------%%
     %% pre-filter branch root points in crotch area
     disp('===================Running DBSCAN on crotch points===================');
     sphere_radius = 6 * P.sample_radius;
     crotch_pts_index = sphere_pruning(P, refined_main_trunk_pts_idx, sphere_radius);
     crotch_pts = P.spls(crotch_pts_index, :);
+    crotch_pts = sortrows(crotch_pts, 3);
     disp(['sphere pruning radius: ' num2str(sphere_radius)]);
 
     %% DBSCAN clustering
@@ -507,9 +513,15 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     Link = linkprop([ax1, ax2], {'CameraUpVector', 'CameraPosition', 'CameraTarget', 'XLim', 'YLim', 'ZLim'});
     setappdata(gcf, 'StoreTheLink', Link);
 
-    %% post-process clusters
-    %      1. check if the cluster contains multiple branches
-    %      2. find the critical point and split multiple branches
+    %%----------------------------------------------------------%%
+    %%-------------------Post-Process Cluster-------------------%%
+    %% split under-segmented clusters
+    %% 1. check if the cluster contains multiple branches
+    %% 2. find the critical point and split multiple branches
+    %% remove over-segmented clusters 
+    %% 1. find the intersection point of branch cluster and trunk
+    %% 2. calculate the closest distance
+    %%----------------------------------------------------------%%
     cluster_counter = 0;
     unique_updated_cluster_label = [];
     updated_cluster_label = [];
