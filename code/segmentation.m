@@ -890,10 +890,10 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     tmp_updated_cluster_pts_cell = {};
     tmp_updated_cluster_pts_list = [];
     tmp_updated_cluster_label = [];
+    cluster_counter = 0;
 
     for i = 1:length(unique_updated_cluster_label)
 
-        cur_cluster_label = unique_updated_cluster_label(i);
         cur_cluster_pts = updated_cluster_pts_cell{i};
 
         [sliced_main_trunk_pts, row, ~] = find_internode(double(cur_cluster_pts), refined_main_trunk_pts, 0.1, false);
@@ -918,10 +918,11 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
         [min_point_distance, ~] = min([point_point_distance1, point_point_distance2]);
 
         if min_line_distance < line_distance_threshold && min_point_distance < sphere_radius
-            tmp_unique_updated_cluster_label = [tmp_unique_updated_cluster_label; cur_cluster_label];
-            tmp_updated_cluster_pts_cell{i} = cur_cluster_pts;
+            cluster_counter = cluster_counter + 1;
+            tmp_unique_updated_cluster_label = [tmp_unique_updated_cluster_label; cluster_counter];
+            tmp_updated_cluster_pts_cell{cluster_counter} = cur_cluster_pts;
             tmp_updated_cluster_pts_list = [tmp_updated_cluster_pts_list; cur_cluster_pts];
-            tmp_updated_cluster_label = [tmp_updated_cluster_label; ones(size(cur_cluster_pts, 1), 1) * cur_cluster_label];
+            tmp_updated_cluster_label = [tmp_updated_cluster_label; ones(size(cur_cluster_pts, 1), 1) * cluster_counter];
         end
 
         %         if SHOW_CLUSTER_SPLIT
@@ -950,7 +951,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     updated_cluster_label = tmp_updated_cluster_label;
 
     %% visualization of initial and refined branch clustering
-    figure('Name', '1st DBSCAN clusters')
+    figure('Name', '2nd DBSCAN clusters')
     ax1 = subplot(1, 2, 1);
     pcshow(original_pt_normalized, 'markersize', 40); hold on
     plot_dbscan_clusters(crotch_pts, cluster_label);
@@ -1007,9 +1008,8 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
 
     for i = 1:length(unique_updated_cluster_label)
 
-        cur_cluster_label = unique_updated_cluster_label(i);
         cur_cluster_pts = updated_cluster_pts_cell{i};
-
+        [~, cur_cluster_pts_index_in_spls] = ismember(cur_cluster_pts, P.spls, 'row');
         [~, cur_cluster_pts_idx] = ismember(cur_cluster_pts, rest_pts, 'row');
         rest_cluster_pts_idx = setdiff(updated_cluster_pts_index_in_rest_pts, cur_cluster_pts_idx);
         MSTs_length = zeros(length(cur_cluster_pts_idx), 1);
@@ -1043,11 +1043,12 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
         MST_nodes_unique = unique(MST_nodes(:, 1:2));
         MST_list{branch_counter} = MST;
 
+        % remove potential other cluster points
         common_index = intersect(MST_nodes_unique, rest_cluster_pts_idx);
         MST_nodes_unique = setdiff(MST_nodes_unique, common_index);
 
         [~, tmp] = ismember(rest_pts(MST_nodes_unique, :), P.spls, 'row'); % the entire branch points (index in spls)
-
+        tmp = unique([tmp; cur_cluster_pts_index_in_spls]); %make sure cluster points are included
         visited(tmp) = visited(tmp) + 1;
 
         branch_pts_idx{branch_counter} = tmp;
@@ -1061,21 +1062,6 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
         print('-painters', '-dpdf', '-fillpage', '-r300', filename);
     end
 
-    figure('Name', 'Overcount branch visualization')
-    pcshow(original_pt_normalized, 'MarkerSize', 30); hold on
-    plot_by_weight(P.spls, visited);
-    xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
-
-    % outside branch pts clustering
-    overcount_branch_pts_index = find(visited > 1);
-    overcount_branch_pts = P.spls(overcount_branch_pts_index, :);
-
-    for j = 1:branch_counter
-        cur_branch_pts_index = branch_pts_idx{j};
-        intersect_index = intersect(cur_branch_pts_index, overcount_branch_pts_index);
-        branch_pts_idx{j} = setdiff(branch_pts_idx{j}, intersect_index);
-    end
-
     figure('Name', 'Entire branch identification')
     pcshow(original_pt_normalized, 'MarkerSize', 30); hold on
 
@@ -1085,10 +1071,38 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
         cur_branch_pts_idx = branch_pts_idx{j};
         cur_branch_pts = P.spls(cur_branch_pts_idx, :);
         plot3(cur_branch_pts(:, 1), cur_branch_pts(:, 2), cur_branch_pts(:, 3), '.', 'Color', colors{rem(j, length(colors)) + 1}, 'MarkerSize', 20);
+        pause();
     end
 
     title(['Clusters: ', num2str(branch_counter)], 'color', [1, 0, 0]);
     xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
+
+    figure('Name', 'Branch count visualization')
+    ax1 = subplot(1, 2, 1);
+    pcshow(original_pt_normalized, 'MarkerSize', 30); hold on
+    plot_by_weight(P.spls, visited);
+    xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
+
+    % outside branch pts clustering
+    overcount_branch_pts_index = find(visited > 1);
+    overcount_branch_pts = P.spls(overcount_branch_pts_index, :);
+    [~, overcount_branch_pts_index2] = ismember(overcount_branch_pts, rest_pts, 'row');
+    overcount_adj_matrix = adj_matrix(overcount_branch_pts_index2, overcount_branch_pts_index2);
+
+    ax2 = subplot(1, 2, 2);
+    pcshow(original_pt_normalized, 'MarkerSize', 30); hold on
+    scatter3(overcount_branch_pts(:, 1), overcount_branch_pts(:, 2), overcount_branch_pts(:, 3), sizep, '.');
+    plot_connectivity(overcount_branch_pts, overcount_adj_matrix, sizee, colore);
+    xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
+
+    Link = linkprop([ax1, ax2], {'CameraUpVector', 'CameraPosition', 'CameraTarget', 'XLim', 'YLim', 'ZLim'});
+    setappdata(gcf, 'StoreTheLink', Link);
+
+    for j = 1:branch_counter
+        cur_branch_pts_index = branch_pts_idx{j};
+        intersect_index = intersect(cur_branch_pts_index, overcount_branch_pts_index);
+        branch_pts_idx{j} = setdiff(branch_pts_idx{j}, intersect_index);
+    end
 
     eps = load_parameters(paras, 'branch_seg_dbscan_eps', 0.05);
     min_samples = load_parameters(overcount_branch_pts, 'branch_seg_dbscan_min_samples', 4);
@@ -1136,7 +1150,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
         [new_cluster_pts_center_list, rows_index] = sortrows(new_cluster_pts_center_list, 3);
         new_cluster_pts_cell = new_cluster_pts_cell(rows_index);
 
-        figure('Name', '2nd DBSCAN clusters')
+        figure('Name', '3rd DBSCAN clusters')
         pcshow(original_pt_normalized, 'MarkerSize', 30); hold on
         plot_dbscan_clusters(overcount_branch_pts, overcount_branch_cluster_label);
         plot3(updated_cluster_pts_center_list(:, 1), updated_cluster_pts_center_list(:, 2), updated_cluster_pts_center_list(:, 3), '.b', 'MarkerSize', 30);
