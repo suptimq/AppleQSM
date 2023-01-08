@@ -998,8 +998,8 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     %% 1. find over-segmented points and their root ID
     %% 2. specify 'k' in spectral clustering based on #root ID
     %% 3. compute the center of each cluster
-    %% 4. merge to the closest existing cluster
-    %% 5. To-Do merge by matching growing direction!
+    %% 4. merge to the closest existing cluster (Discarded)
+    %% 5. merge by matching growing direction!
     %%---------------------------------------------------------%%
     overcount_branch_pts_index = find(visited > 1);
     overcount_branch_pts_cluster = visited_id(overcount_branch_pts_index);
@@ -1037,21 +1037,6 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     title(['Clusters: ', num2str(branch_counter)], 'color', [1, 0, 0]);
     xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
 
-    % compute the center of each SOLID cluster
-    updated_cluster_pts_center_list = [];
-
-    for j = 1:length(valid_cluster_pts_cell)
-        tmp_pts = valid_cluster_pts_cell{j};
-
-        if size(tmp_pts, 1) == 1
-            tmp_center = tmp_pts;
-        else
-            tmp_center = median(tmp_pts);
-        end
-
-        updated_cluster_pts_center_list = [updated_cluster_pts_center_list; tmp_center];
-    end
-
     % merge
     noise_threshold = 10;
     merge_threshold = 0.2;
@@ -1059,102 +1044,55 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     disp(['merge #point threshold: ' num2str(noise_threshold)]);
     disp(['merge distance threshold: ' num2str(merge_threshold)]);
 
-    if size(overcount_branch_pts, 1) > noise_threshold
+    for m = 1:size(overcount_branch_pts_group, 1)
+        visited_group = overcount_branch_pts_group(m, :);
+        tmp_index = cellfun(@(x)all(x == visited_group), overcount_branch_pts_cluster);
+        tmp_pts_index = overcount_branch_pts_index(tmp_index);
+        overcount_branch_pts = P.spls(tmp_pts_index, :);
 
-        for m = 1:size(overcount_branch_pts_group, 1)
-            visited_group = overcount_branch_pts_group(m, :);
-            tmp_index = cellfun(@(x)all(x == visited_group), overcount_branch_pts_cluster);
-            tmp_pts_index = overcount_branch_pts_index(tmp_index);
-            overcount_branch_pts = P.spls(tmp_pts_index, :);
+        % discard small clusters
+        if size(overcount_branch_pts, 1) > noise_threshold
 
             num_split_cluster = length(visited_group);
             overcount_branch_cluster_label = spectralcluster(overcount_branch_pts, num_split_cluster);
             unique_overcount_branch_cluster_label = unique(overcount_branch_cluster_label);
 
-            % sort the new clusters from bottom to top
-            new_cluster_pts_cell = {};
-            new_cluster_pts_center_list = [];
+            assert(length(unique_overcount_branch_cluster_label)==length(visited_group), 'Error');
 
+            visited2 = zeros(num_split_cluster, 1);
             for j = 1:length(unique_overcount_branch_cluster_label)
 
                 tmp_cluster_label = unique_overcount_branch_cluster_label(j);
                 tmp_index = overcount_branch_cluster_label == tmp_cluster_label;
-                overcount_branch_cluster_pts = overcount_branch_pts(tmp_index, :);
-                new_cluster_pts_cell{j} = overcount_branch_cluster_pts; % first cluster is for noise
+                overcount_branch_cluster_pts = overcount_branch_pts(tmp_index, :); 
 
-                if size(overcount_branch_cluster_pts, 1) == 1
-                    overcount_branch_cluster_pts_center = overcount_branch_cluster_pts;
-                else
-                    overcount_branch_cluster_pts_center = median(overcount_branch_cluster_pts);
+                angle_diff_list = [];
+                for k = 1:length(visited_group)
+                    group_id = visited_group(k);
+                    neighbor_cluster_pts = valid_cluster_pts_cell{group_id};
+
+                    % find the closest points between two clusters
+                    distance_matrix = pdist2(double(neighbor_cluster_pts), double(overcount_branch_cluster_pts));
+                    [d_min, d_tmp_index] = min(distance_matrix(:));
+                    [row, col] = ind2sub(size(distance_matrix), d_tmp_index);
+                    tmp_pts1 = neighbor_cluster_pts(row-1, :);
+                    tmp_pts2 = neighbor_cluster_pts(row, :);
+                    tmp_pts3 = overcount_branch_cluster_pts(col, :);
+                    critical_pts = [tmp_pts1; tmp_pts2; tmp_pts3];
+
+                    % compute angle
+                    [pts_vector2, pts_vector_angle2] = point_to_point_angle(critical_pts);
+                    angle_diff_list = [angle_diff_list; pts_vector_angle2];
                 end
 
-                new_cluster_pts_center_list = [new_cluster_pts_center_list; overcount_branch_cluster_pts_center];
-            end
-
-            [new_cluster_pts_center_list, rows_index] = sortrows(new_cluster_pts_center_list, 3);
-            new_cluster_pts_cell = new_cluster_pts_cell(rows_index);
-
-            figure('Name', '3rd DBSCAN clusters')
-            pcshow(original_pt_normalized, 'MarkerSize', 30); hold on
-            plot_dbscan_clusters(overcount_branch_pts, overcount_branch_cluster_label);
-            plot3(updated_cluster_pts_center_list(:, 1), updated_cluster_pts_center_list(:, 2), updated_cluster_pts_center_list(:, 3), '.b', 'MarkerSize', 30);
-            plot3(new_cluster_pts_center_list(:, 1), new_cluster_pts_center_list(:, 2), new_cluster_pts_center_list(:, 3), '.r', 'MarkerSize', 30);
-            xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
-
-            visited2 = zeros(branch_counter, 1);
-
-            for j = 1:length(new_cluster_pts_cell)
-
-                overcount_branch_cluster_pts = new_cluster_pts_cell{j};
-                overcount_branch_cluster_pts_center = new_cluster_pts_center_list(j, :);
-
-                distance_matrix = pdist2(double(overcount_branch_cluster_pts_center), double(updated_cluster_pts_center_list));
-                [~, tmp_index] = mink(distance_matrix, 2);
-
-                for k = 1:length(tmp_index)
-
-                    if ~visited2(tmp_index(k))
-
-                        % check if the minimum distance between two clusters < threshold
-                        % why not check the growing vector angle - too much uncertainty
-                        neighbor_cluster_pts = valid_cluster_pts_cell{tmp_index(k)}; % already sort by the distance to trunk
-                        distance_matrix = pdist2(double(overcount_branch_cluster_pts), double(neighbor_cluster_pts));
-                        [d_min, d_tmp_index] = min(distance_matrix(:));
-                        [row, col] = ind2sub(size(distance_matrix), d_tmp_index);
-                        tmp1_pts = overcount_branch_cluster_pts(row, :);
-                        tmp2_pts = neighbor_cluster_pts(col, :);
-                        critical_pts = [tmp1_pts; tmp2_pts];
-
-                        % compute point to point distance within the cluster
-                        distance_list = point_to_point_distance(neighbor_cluster_pts);
-                        avg_distance = mean(distance_list);
-
-                        if SHOW_CLUSTER_MERGE
-                            figure('Name', ['Cluster ' num2str(j) 'merge'])
-                            subplot(1, 2, 1)
-                            pcshow(original_pt_normalized, 'MarkerSize', 30); hold on; set(gcf, 'color', 'white')
-                            plot3(neighbor_cluster_pts(:, 1), neighbor_cluster_pts(:, 2), neighbor_cluster_pts(:, 3), '.b', 'MarkerSize', 30);
-                            plot3(overcount_branch_cluster_pts(:, 1), overcount_branch_cluster_pts(:, 2), overcount_branch_cluster_pts(:, 3), '.r', 'MarkerSize', 30);
-                            plot3(critical_pts(:, 1), critical_pts(:, 2), critical_pts(:, 3), '.y', 'MarkerSize', 30);
-                            xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
-
-                            tmp_id = 1:length(distance_list) + 1;
-                            subplot(1, 2, 2)
-                            plot(tmp_id, [distance_list, d_min]); hold on
-                            plot(tmp_id, [distance_list, d_min], '.r', 'MarkerSize', 20);
-                            title(['Average distance ', num2str(avg_distance, '%.4f')], ['Merge distance ', num2str(d_min, '%.4f')], 'color', [1, 0, 0])
-                        end
-
-                        if d_min < merge_threshold
-                            visited2(tmp_index(k)) = 1;
-                            [~, ii] = ismember(overcount_branch_cluster_pts, P.spls, 'row');
-                            branch_pts_idx{tmp_index(k)} = [branch_pts_idx{tmp_index(k)}; ii];
-                            break;
-                        end
-
-                    end
-
+                [~, tmp_index] = mink(angle_diff_list, length(visited_group));
+                while visited2(tmp_index(1))
+                    tmp_index(1) = [];
                 end
+                visited2(tmp_index(1)) = 1;
+                [~, ii] = ismember(overcount_branch_cluster_pts, P.spls, 'row');
+                merge_group_id = visited_group(tmp_index(1));
+                branch_pts_idx{merge_group_id} = [branch_pts_idx{merge_group_id}; ii];
 
             end
 
