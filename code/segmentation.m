@@ -445,7 +445,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
 
     %% DBSCAN clustering
     noise_label = -1;
-    eps = load_parameters(paras, 'branch_seg_dbscan_eps', 0.04);
+    eps = load_parameters(paras, 'branch_seg_dbscan_eps', P.sample_radius * 1.5);
     min_samples = load_parameters(paras, 'branch_seg_dbscan_min_samples', 3);
     cluster_label = dbscan(crotch_pts, eps, min_samples);
     noise_pts = crotch_pts(cluster_label == noise_label, :);
@@ -802,6 +802,21 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     tmp_updated_cluster_pts_list = [];
     tmp_updated_cluster_label = [];
     cluster_counter = 0;
+    internode_point_distance = [];
+
+    % precompute internode point-to-point distance statistics
+    for i = 1:length(unique_updated_cluster_label)
+
+        cur_cluster_pts = updated_cluster_pts_cell{i};
+
+        [sliced_main_trunk_pts, row, col] = find_internode(double(cur_cluster_pts), refined_main_trunk_pts, 0.1, false);
+        internode_point_distance = [internode_point_distance; pdist2(double(sliced_main_trunk_pts(row, :)), double(cur_cluster_pts(col, :)))];
+
+    end
+
+    mean_internode_point_distance = mean(internode_point_distance);
+    std_internode_point_distance = std(internode_point_distance);
+    point_distance_threshold = mean_internode_point_distance + 2 * std_internode_point_distance;
 
     for i = 1:length(unique_updated_cluster_label)
 
@@ -828,7 +843,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
         [min_line_distance, ~] = min([line_line_distance1, line_line_distance2]);
         [min_point_distance, ~] = min([point_point_distance1, point_point_distance2]);
 
-        if min_line_distance < line_distance_threshold && min_point_distance < sphere_radius
+        if min_line_distance < line_distance_threshold && min_point_distance < point_distance_threshold
             cluster_counter = cluster_counter + 1;
             tmp_unique_updated_cluster_label = [tmp_unique_updated_cluster_label; cluster_counter];
             tmp_updated_cluster_pts_cell{cluster_counter} = cur_cluster_pts;
@@ -984,6 +999,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     %% 2. specify 'k' in spectral clustering based on #root ID
     %% 3. compute the center of each cluster
     %% 4. merge to the closest existing cluster
+    %% 5. To-Do merge by matching growing direction!
     %%---------------------------------------------------------%%
     overcount_branch_pts_index = find(visited > 1);
     overcount_branch_pts_cluster = visited_id(overcount_branch_pts_index);
@@ -1020,9 +1036,6 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
 
     title(['Clusters: ', num2str(branch_counter)], 'color', [1, 0, 0]);
     xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
-
-    eps = load_parameters(paras, 'branch_seg_dbscan_eps', 0.05);
-    min_samples = load_parameters(paras, 'branch_seg_dbscan_min_samples', 4);
 
     % compute the center of each SOLID cluster
     updated_cluster_pts_center_list = [];
