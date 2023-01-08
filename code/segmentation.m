@@ -978,21 +978,6 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     density_weight_normalized = normalize(density_weight, 'range');
     distance_weight_normalized = normalize(distance_weight, 'range');
     coefficient_density_weight = load_parameters(paras, 'subgraph_edge_coefficient_alpha2', 0.8);
-    rest_MST_weight = coefficient_density_weight * density_weight_normalized + (1 - coefficient_density_weight) * distance_weight_normalized;
-    rest_weighted_graph = graph(adj_idx(1, :), adj_idx(2, :), rest_MST_weight);
-
-    % plot graph
-    figure('Name', 'Graph w/i trunk points')
-    plot_rest_weighted_graph = plot(rest_weighted_graph);
-    hold on
-
-    if DEBUG
-        figure('Name', 'Refined skeleton connectivity')
-        colore = [1, .0, .0]; sizee = 2;
-        pcshow(rest_pts, 'markersize', 80); hold on;
-        plot_connectivity(rest_pts, adj_matrix, sizee, colore);
-        axis equal;
-    end
 
     % go over each cluster and find the longest MST
     % notice: # of clusters may change because
@@ -1012,6 +997,17 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
         [~, cur_cluster_pts_index_in_spls] = ismember(cur_cluster_pts, P.spls, 'row');
         [~, cur_cluster_pts_idx] = ismember(cur_cluster_pts, rest_pts, 'row');
         rest_cluster_pts_idx = setdiff(updated_cluster_pts_index_in_rest_pts, cur_cluster_pts_idx);
+
+        % remove other cluster points from the graph
+        adj_idx_trans = adj_idx';
+        [~, tmp_index] = ismember(rest_cluster_pts_idx, adj_idx_trans);
+        rest_index = setdiff(1:size(adj_idx, 2), tmp_index);
+        adj_idx_rest = adj_idx(:, rest_index);
+        density_weight_normalized_rest = density_weight_normalized(rest_index);
+        distance_weight_normalized_rest = distance_weight_normalized(rest_index);
+        rest_MST_weight = coefficient_density_weight * density_weight_normalized_rest + (1 - coefficient_density_weight) * distance_weight_normalized_rest;
+        rest_weighted_graph = graph(adj_idx_rest(1, :), adj_idx_rest(2, :), rest_MST_weight);
+        
         MSTs_length = zeros(length(cur_cluster_pts_idx), 1);
 
         % go over each point in the cluster
@@ -1020,8 +1016,6 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
             [MST, ~] = minspantree(rest_weighted_graph, 'Type', 'tree', 'Root', findnode(rest_weighted_graph, cur_pts_in_MST_idx));
             MST_length = size(MST.Edges, 1);
             MSTs_length(j) = MST_length;
-            highlight(plot_rest_weighted_graph, MST, 'NodeColor', 'g');
-            highlight(plot_rest_weighted_graph, findnode(rest_weighted_graph, cur_pts_in_MST_idx), 'NodeColor', 'r', 'MarkerSize', 5);
         end
 
         [MST_max_length, MST_max_idx] = max(MSTs_length);
@@ -1043,10 +1037,6 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
         MST_nodes_unique = unique(MST_nodes(:, 1:2));
         MST_list{branch_counter} = MST;
 
-        % remove potential other cluster points
-        common_index = intersect(MST_nodes_unique, rest_cluster_pts_idx);
-        MST_nodes_unique = setdiff(MST_nodes_unique, common_index);
-
         [~, tmp] = ismember(rest_pts(MST_nodes_unique, :), P.spls, 'row'); % the entire branch points (index in spls)
         tmp = unique([tmp; cur_cluster_pts_index_in_spls]); %make sure cluster points are included
         visited(tmp) = visited(tmp) + 1;
@@ -1061,21 +1051,6 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
         axis off;
         print('-painters', '-dpdf', '-fillpage', '-r300', filename);
     end
-
-    figure('Name', 'Entire branch identification')
-    pcshow(original_pt_normalized, 'MarkerSize', 30); hold on
-
-    colors = {'red', 'blue', 'yellow', 'green', 'cyan', 'magenta'};
-
-    for j = 1:branch_counter
-        cur_branch_pts_idx = branch_pts_idx{j};
-        cur_branch_pts = P.spls(cur_branch_pts_idx, :);
-        plot3(cur_branch_pts(:, 1), cur_branch_pts(:, 2), cur_branch_pts(:, 3), '.', 'Color', colors{rem(j, length(colors)) + 1}, 'MarkerSize', 20);
-        pause();
-    end
-
-    title(['Clusters: ', num2str(branch_counter)], 'color', [1, 0, 0]);
-    xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
 
     figure('Name', 'Branch count visualization')
     ax1 = subplot(1, 2, 1);
@@ -1103,6 +1078,20 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
         intersect_index = intersect(cur_branch_pts_index, overcount_branch_pts_index);
         branch_pts_idx{j} = setdiff(branch_pts_idx{j}, intersect_index);
     end
+
+    figure('Name', 'Entire branch identification')
+    pcshow(original_pt_normalized, 'MarkerSize', 30); hold on
+
+    colors = {'red', 'blue', 'yellow', 'green', 'cyan', 'magenta'};
+
+    for j = 1:branch_counter
+        cur_branch_pts_idx = branch_pts_idx{j};
+        cur_branch_pts = P.spls(cur_branch_pts_idx, :);
+        plot3(cur_branch_pts(:, 1), cur_branch_pts(:, 2), cur_branch_pts(:, 3), '.', 'Color', colors{rem(j, length(colors)) + 1}, 'MarkerSize', 20);
+    end
+
+    title(['Clusters: ', num2str(branch_counter)], 'color', [1, 0, 0]);
+    xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
 
     eps = load_parameters(paras, 'branch_seg_dbscan_eps', 0.05);
     min_samples = load_parameters(overcount_branch_pts, 'branch_seg_dbscan_min_samples', 4);
