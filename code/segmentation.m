@@ -740,95 +740,6 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
                 split_clusters_index{split_counter} = peak_index + 1:size(pts_list, 1);
             end
 
-            %             elseif sum(TF) ~= 0 && sum(TF2) ~= 0
-            %                 % convert logical value to actual index
-            %                 local_max_index = find(TF);
-            %                 local_min_index = find(TF2);
-            %
-            %                 % make sure one peak corresponds to one valley
-            %                 num_peak = length(local_max_index);
-            %                 num_valley = length(local_min_index);
-            %
-            %                 if num_peak ~= num_valley
-            %                     tmp_min = min(num_peak, num_valley);
-            %                     local_max_index = local_max_index(1:tmp_min);
-            %                     local_min_index = local_min_index(1:tmp_min);
-            %                 end
-            %
-            %                 % split the cluster
-            %                 point_point_distance_threshold = mean(point_point_distance_list{1}) * distance_threshold_multiplier;
-            %                 point_trunk_gap_distance_threshold = mean(point_trunk_gap_distance_list{1}) * distance_threshold_multiplier;
-            %                 last_valley_split_flag = false;
-            %
-            %                 for j = 1:length(local_max_index)
-            %
-            %                     peak_index = local_max_index(j);
-            %                     valley_index = local_min_index(j);
-            %
-            %                     % find the corresponding critical point
-            %                     for k = 1:length(critical_id_list)
-            %
-            %                         if peak_index <= critical_id_list(k)
-            %                             point_point_distance_threshold = mean(point_point_distance_list{k}) * distance_threshold_multiplier;
-            %                             point_trunk_gap_distance_threshold = mean(point_trunk_gap_distance_list{k});
-            %                             break;
-            %                         end
-            %
-            %                     end
-            %
-            %                     peak_to_valley_point_distance = branch_branch_distance_matrix(peak_index, valley_index);
-            %                     first_pts_to_trunk_distance = trunk_branch_distance_list(1);
-            %                     peak_pts_to_trunk_distance = trunk_branch_distance_list(peak_index);
-            %                     valley_pts_to_trunk_distance = trunk_branch_distance_list(valley_index);
-            %                     peak_valley_to_trunk_distance = abs(peak_pts_to_trunk_distance - valley_pts_to_trunk_distance);
-            %                     % if the distance difference > threshold, split
-            %                     % if peak and next valley are neighbors, split one cluster
-            %                     % otherwise, split to three clusters
-            %                     last_cluster = false;
-            %                     flag = valley_pts_to_trunk_distance <= first_pts_to_trunk_distance * 1.5;
-            %                     if (peak_to_valley_point_distance > point_point_distance_threshold || peak_valley_to_trunk_distance > point_trunk_gap_distance_threshold) && flag
-            %
-            %                         if j == length(local_max_index)
-            %                             last_cluster = true;
-            %                         end
-            %
-            %                         num_front_pts = abs(peak_index - start_index) + 1;
-            %                         num_rear_pts = abs(peak_index - valley_index) + 1;
-            %                         if num_front_pts <= 3 && num_rear_pts <= 3
-            %                             start_index = valley_index;
-            %                         elseif num_front_pts > 3 && num_rear_pts <= 3
-            %                             split_counter = split_counter + 1;
-            %                             split_clusters_index{split_counter} = start_index:peak_index;
-            %                             start_index = valley_index;
-            %                         elseif num_front_pts <= 3 && num_rear_pts > 3
-            %                             split_counter = split_counter + 1;
-            %                             split_clusters_index{split_counter} = peak_index+1:valley_index;
-            %                             start_index = valley_index + 1;
-            %                         else
-            %                             split_counter = split_counter + 1;
-            %                             split_clusters_index{split_counter} = start_index:peak_index;
-            %                             split_counter = split_counter + 1;
-            %                             split_clusters_index{split_counter} = peak_index+1:valley_index;
-            %                             start_index = valley_index + 1;
-            %                         end
-            %
-            %                     end
-            %
-            %                 end
-            %
-            %                 if last_cluster
-            %                     % check if #points > 3
-            %                     end_index = size(pts_list, 1);
-            %                     last_cluster_length = abs(start_index - end_index) + 1;
-            %
-            %                     if last_cluster_length > 3
-            %                         split_counter = split_counter + 1;
-            %                         split_clusters_index{split_counter} = start_index:end_index;
-            %                     end
-            %
-            %                 end
-            %
-
             colors = {'yellow', 'green', 'cyan', 'magenta'};
 
             if split_counter > 0
@@ -924,15 +835,6 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
             tmp_updated_cluster_pts_list = [tmp_updated_cluster_pts_list; cur_cluster_pts];
             tmp_updated_cluster_label = [tmp_updated_cluster_label; ones(size(cur_cluster_pts, 1), 1) * cluster_counter];
         end
-
-        %         if SHOW_CLUSTER_SPLIT
-        %             figure('Name', ['Cluster ', num2str(i)])
-        %             plot3(sliced_main_trunk_pts(:, 1), sliced_main_trunk_pts(:, 2), sliced_main_trunk_pts(:, 3), '.r', 'MarkerSize', 30); hold on
-        %             plot3(cur_cluster_pts(:, 1), cur_cluster_pts(:, 2), cur_cluster_pts(:, 3), '.b', 'MarkerSize', 30);
-        %             plot3(nearest_pts(:, 1), nearest_pts(:, 2), nearest_pts(:, 3), '.g', 'MarkerSize', 30);
-        %             title(['Projection distance: ', num2str(distance_, '%.2f')], 'color', [1, 0, 0]);
-        %             xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
-        %         end
 
         %         figure('Name', ['Cluster ', num2str(i)])
         %         plot3(sliced_main_trunk_pts(:, 1), sliced_main_trunk_pts(:, 2), sliced_main_trunk_pts(:, 3), '.r', 'MarkerSize', 30); hold on
@@ -1081,8 +983,8 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     %% 1. find over-segmented points and their root ID
     %% 2. specify 'k' in spectral clustering based on #root ID
     %% 3. compute the center of each cluster
-    %% 4. merge to the closest existing cluster 
-    %%---------------------------------------------------------%%    
+    %% 4. merge to the closest existing cluster
+    %%---------------------------------------------------------%%
     overcount_branch_pts_index = find(visited > 1);
     overcount_branch_pts_cluster = visited_id(overcount_branch_pts_index);
     overcount_branch_pts_group = unique(cell2mat(overcount_branch_pts_cluster), 'rows');
@@ -1266,7 +1168,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     %%-------------------------------------------------------------------%%
     %%-------------------Primary Branch Identification-------------------%%
     %% same to main trunk detection
-    %% find the point providing the maximum path weight    
+    %% find the point providing the maximum path weight
     %%-------------------------------------------------------------------%%
     primary_branch_pts_idx = {}; % index in terms of P.spls
 
@@ -1282,6 +1184,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
         % internode might not be included in MST (small possibility)
         d_m = pdist2(double(branch_pts), double(branch_pts(col, :)));
         [~, tmp_index] = mink(d_m, size(branch_pts, 1));
+
         while ~ismember(branch_internode_index_in_rest_pts, MST_node)
             tmp_index(1) = [];
             col = tmp_index(1);
