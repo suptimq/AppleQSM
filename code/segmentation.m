@@ -967,7 +967,17 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     Link = linkprop([ax1, ax2], {'CameraUpVector', 'CameraPosition', 'CameraTarget', 'XLim', 'YLim', 'ZLim'});
     setappdata(gcf, 'StoreTheLink', Link);
 
-    %% individual branch identification
+    %%---------------------------------------------------------%%
+    %%-------------------Branch Segmentation-------------------%%
+    %% individual branch segmentation
+    %% 1. develop a weighted graph for each cluster
+    %%    - exclude other cluster points in the graph
+    %% 2. find the longest MST in each graph as entire branch
+    %% notice: # of clusters may change because
+    %%         - a branch could be separated into several clusters
+    %%         - multi branches could be grouped into one cluster
+    %%---------------------------------------------------------%%
+    disp('===================Branch Segmentation===================');
     % build weighted graph which excludes main trunk pts and refined branch pts
     branch_distance_th = load_parameters(paras, 'branch_distance_th_lambda2', 0.02);
     rest_pts_adj = MST_adj_matrix(rest_pts_idx, rest_pts_idx);
@@ -979,15 +989,17 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     distance_weight_normalized = normalize(distance_weight, 'range');
     coefficient_density_weight = load_parameters(paras, 'subgraph_edge_coefficient_alpha2', 0.8);
 
-    % go over each cluster and find the longest MST
-    % notice: # of clusters may change because
-    %         - a branch could be separated into several clusters
-    %         - multi branches could be grouped into one cluster
+    disp(['distance threshold lambda2: ' num2str(branch_distance_th)]);
+    disp(['subgraph refine mode: ' branch_mode]);
+    disp(['subgraph edge coefficient alpha2: ' num2str(coefficient_density_weight)]);
+
     branch_counter = 0;
     branch_pts_idx = {}; % index in terms of P.spls
     valid_cluster_pts_cell = {};
     visited = zeros(size(P.spls, 1), 1); % if points have been already assigned to one of primary branches
+    visited_id = cell(size(P.spls, 1), 1);
     MST_list = {};
+    MST_node_list = {};
 
     [~, updated_cluster_pts_index_in_rest_pts] = ismember(updated_cluster_pts_list, rest_pts, 'row');
 
@@ -1007,7 +1019,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
         distance_weight_normalized_rest = distance_weight_normalized(rest_index);
         rest_MST_weight = coefficient_density_weight * density_weight_normalized_rest + (1 - coefficient_density_weight) * distance_weight_normalized_rest;
         rest_weighted_graph = graph(adj_idx_rest(1, :), adj_idx_rest(2, :), rest_MST_weight);
-        
+
         MSTs_length = zeros(length(cur_cluster_pts_idx), 1);
 
         % go over each point in the cluster
@@ -1036,10 +1048,15 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
         MST_nodes = table2array(MST.Edges);
         MST_nodes_unique = unique(MST_nodes(:, 1:2));
         MST_list{branch_counter} = MST;
+        MST_node_list{branch_counter} = MST_nodes_unique;
 
         [~, tmp] = ismember(rest_pts(MST_nodes_unique, :), P.spls, 'row'); % the entire branch points (index in spls)
         tmp = unique([tmp; cur_cluster_pts_index_in_spls]); %make sure cluster points are included
         visited(tmp) = visited(tmp) + 1;
+
+        for k = 1:length(tmp)
+            visited_id{tmp(k)} = [visited_id{tmp(k)}, i];
+        end
 
         branch_pts_idx{branch_counter} = tmp;
 
@@ -1058,8 +1075,17 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     plot_by_weight(P.spls, visited);
     xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
 
-    % outside branch pts clustering
+    %%---------------------------------------------------------%%
+    %%-------------------Post-Process Branch-------------------%%
+    %% merge over-segmented branch to existing branches
+    %% 1. find over-segmented points and their root ID
+    %% 2. specify 'k' in spectral clustering based on #root ID
+    %% 3. compute the center of each cluster
+    %% 4. merge to the closest existing cluster 
+    %%---------------------------------------------------------%%    
     overcount_branch_pts_index = find(visited > 1);
+    overcount_branch_pts_cluster = visited_id(overcount_branch_pts_index);
+    overcount_branch_pts_group = unique(cell2mat(overcount_branch_pts_cluster), 'rows');
     overcount_branch_pts = P.spls(overcount_branch_pts_index, :);
     [~, overcount_branch_pts_index2] = ismember(overcount_branch_pts, rest_pts, 'row');
     overcount_adj_matrix = adj_matrix(overcount_branch_pts_index2, overcount_branch_pts_index2);
@@ -1094,108 +1120,123 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
 
     eps = load_parameters(paras, 'branch_seg_dbscan_eps', 0.05);
-    min_samples = load_parameters(overcount_branch_pts, 'branch_seg_dbscan_min_samples', 4);
+    min_samples = load_parameters(paras, 'branch_seg_dbscan_min_samples', 4);
 
-    if ~isempty(overcount_branch_pts)
-        overcount_branch_cluster_label = dbscan(overcount_branch_pts, eps, min_samples);
-        unique_overcount_branch_cluster_label = unique(overcount_branch_cluster_label);
-        unique_overcount_branch_cluster_label = unique_overcount_branch_cluster_label(unique_overcount_branch_cluster_label ~= -1);
+    % compute the center of each SOLID cluster
+    updated_cluster_pts_center_list = [];
 
-        % compute the center of each SOLID cluster
-        updated_cluster_pts_center_list = [];
+    for j = 1:length(valid_cluster_pts_cell)
+        tmp_pts = valid_cluster_pts_cell{j};
 
-        for j = 1:length(valid_cluster_pts_cell)
-            tmp_pts = valid_cluster_pts_cell{j};
-
-            if size(tmp_pts, 1) == 1
-                tmp_center = tmp_pts;
-            else
-                tmp_center = median(tmp_pts);
-            end
-
-            updated_cluster_pts_center_list = [updated_cluster_pts_center_list; tmp_center];
+        if size(tmp_pts, 1) == 1
+            tmp_center = tmp_pts;
+        else
+            tmp_center = median(tmp_pts);
         end
 
-        % sort the new clusters from bottom to top
-        new_cluster_pts_cell = {};
-        new_cluster_pts_center_list = [];
+        updated_cluster_pts_center_list = [updated_cluster_pts_center_list; tmp_center];
+    end
 
-        for j = 1:length(unique_overcount_branch_cluster_label)
+    % merge
+    noise_threshold = 10;
+    merge_threshold = 0.2;
 
-            tmp_cluster_label = unique_overcount_branch_cluster_label(j);
-            tmp_index = overcount_branch_cluster_label == tmp_cluster_label;
-            overcount_branch_cluster_pts = overcount_branch_pts(tmp_index, :);
-            new_cluster_pts_cell{j} = overcount_branch_cluster_pts; % first cluster is for noise
+    disp(['merge #point threshold: ' num2str(noise_threshold)]);
+    disp(['merge distance threshold: ' num2str(merge_threshold)]);
 
-            if size(overcount_branch_cluster_pts, 1) == 1
-                overcount_branch_cluster_pts_center = overcount_branch_cluster_pts;
-            else
-                overcount_branch_cluster_pts_center = median(overcount_branch_cluster_pts);
+    if size(overcount_branch_pts, 1) > noise_threshold
+
+        for m = 1:size(overcount_branch_pts_group, 1)
+            visited_group = overcount_branch_pts_group(m, :);
+            tmp_index = cellfun(@(x)all(x == visited_group), overcount_branch_pts_cluster);
+            tmp_pts_index = overcount_branch_pts_index(tmp_index);
+            overcount_branch_pts = P.spls(tmp_pts_index, :);
+
+            num_split_cluster = length(visited_group);
+            overcount_branch_cluster_label = spectralcluster(overcount_branch_pts, num_split_cluster);
+            unique_overcount_branch_cluster_label = unique(overcount_branch_cluster_label);
+
+            % sort the new clusters from bottom to top
+            new_cluster_pts_cell = {};
+            new_cluster_pts_center_list = [];
+
+            for j = 1:length(unique_overcount_branch_cluster_label)
+
+                tmp_cluster_label = unique_overcount_branch_cluster_label(j);
+                tmp_index = overcount_branch_cluster_label == tmp_cluster_label;
+                overcount_branch_cluster_pts = overcount_branch_pts(tmp_index, :);
+                new_cluster_pts_cell{j} = overcount_branch_cluster_pts; % first cluster is for noise
+
+                if size(overcount_branch_cluster_pts, 1) == 1
+                    overcount_branch_cluster_pts_center = overcount_branch_cluster_pts;
+                else
+                    overcount_branch_cluster_pts_center = median(overcount_branch_cluster_pts);
+                end
+
+                new_cluster_pts_center_list = [new_cluster_pts_center_list; overcount_branch_cluster_pts_center];
             end
 
-            new_cluster_pts_center_list = [new_cluster_pts_center_list; overcount_branch_cluster_pts_center];
-        end
+            [new_cluster_pts_center_list, rows_index] = sortrows(new_cluster_pts_center_list, 3);
+            new_cluster_pts_cell = new_cluster_pts_cell(rows_index);
 
-        [new_cluster_pts_center_list, rows_index] = sortrows(new_cluster_pts_center_list, 3);
-        new_cluster_pts_cell = new_cluster_pts_cell(rows_index);
+            figure('Name', '3rd DBSCAN clusters')
+            pcshow(original_pt_normalized, 'MarkerSize', 30); hold on
+            plot_dbscan_clusters(overcount_branch_pts, overcount_branch_cluster_label);
+            plot3(updated_cluster_pts_center_list(:, 1), updated_cluster_pts_center_list(:, 2), updated_cluster_pts_center_list(:, 3), '.b', 'MarkerSize', 30);
+            plot3(new_cluster_pts_center_list(:, 1), new_cluster_pts_center_list(:, 2), new_cluster_pts_center_list(:, 3), '.r', 'MarkerSize', 30);
+            xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
 
-        figure('Name', '3rd DBSCAN clusters')
-        pcshow(original_pt_normalized, 'MarkerSize', 30); hold on
-        plot_dbscan_clusters(overcount_branch_pts, overcount_branch_cluster_label);
-        plot3(updated_cluster_pts_center_list(:, 1), updated_cluster_pts_center_list(:, 2), updated_cluster_pts_center_list(:, 3), '.b', 'MarkerSize', 30);
-        plot3(new_cluster_pts_center_list(:, 1), new_cluster_pts_center_list(:, 2), new_cluster_pts_center_list(:, 3), '.r', 'MarkerSize', 30);
-        xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
+            visited2 = zeros(branch_counter, 1);
 
-        merge_threshold = 0.2;
-        visited2 = zeros(branch_counter, 1);
+            for j = 1:length(new_cluster_pts_cell)
 
-        for j = 1:length(new_cluster_pts_cell)
+                overcount_branch_cluster_pts = new_cluster_pts_cell{j};
+                overcount_branch_cluster_pts_center = new_cluster_pts_center_list(j, :);
 
-            overcount_branch_cluster_pts = new_cluster_pts_cell{j};
-            overcount_branch_cluster_pts_center = new_cluster_pts_center_list(j, :);
+                distance_matrix = pdist2(double(overcount_branch_cluster_pts_center), double(updated_cluster_pts_center_list));
+                [~, tmp_index] = mink(distance_matrix, 2);
 
-            distance_matrix = pdist2(double(overcount_branch_cluster_pts_center), double(updated_cluster_pts_center_list));
-            [~, tmp_index] = mink(distance_matrix, 2);
+                for k = 1:length(tmp_index)
 
-            for k = 1:length(tmp_index)
+                    if ~visited2(tmp_index(k))
 
-                if ~visited2(tmp_index(k))
+                        % check if the minimum distance between two clusters < threshold
+                        % why not check the growing vector angle - too much uncertainty
+                        neighbor_cluster_pts = valid_cluster_pts_cell{tmp_index(k)}; % already sort by the distance to trunk
+                        distance_matrix = pdist2(double(overcount_branch_cluster_pts), double(neighbor_cluster_pts));
+                        [d_min, d_tmp_index] = min(distance_matrix(:));
+                        [row, col] = ind2sub(size(distance_matrix), d_tmp_index);
+                        tmp1_pts = overcount_branch_cluster_pts(row, :);
+                        tmp2_pts = neighbor_cluster_pts(col, :);
+                        critical_pts = [tmp1_pts; tmp2_pts];
 
-                    % check if the minimum distance between two clusters < threshold
-                    % why not check the growing vector angle - too much uncertainty
-                    neighbor_cluster_pts = valid_cluster_pts_cell{tmp_index(k)}; % already sort by the distance to trunk
-                    distance_matrix = pdist2(double(overcount_branch_cluster_pts), double(neighbor_cluster_pts));
-                    [d_min, d_tmp_index] = min(distance_matrix(:));
-                    [row, col] = ind2sub(size(distance_matrix), d_tmp_index);
-                    tmp1_pts = overcount_branch_cluster_pts(row, :);
-                    tmp2_pts = neighbor_cluster_pts(col, :);
-                    critical_pts = [tmp1_pts; tmp2_pts];
+                        % compute point to point distance within the cluster
+                        distance_list = point_to_point_distance(neighbor_cluster_pts);
+                        avg_distance = mean(distance_list);
 
-                    % compute point to point distance within the cluster
-                    distance_list = point_to_point_distance(neighbor_cluster_pts);
-                    avg_distance = mean(distance_list);
+                        if SHOW_CLUSTER_MERGE
+                            figure('Name', ['Cluster ' num2str(j) 'merge'])
+                            subplot(1, 2, 1)
+                            pcshow(original_pt_normalized, 'MarkerSize', 30); hold on; set(gcf, 'color', 'white')
+                            plot3(neighbor_cluster_pts(:, 1), neighbor_cluster_pts(:, 2), neighbor_cluster_pts(:, 3), '.b', 'MarkerSize', 30);
+                            plot3(overcount_branch_cluster_pts(:, 1), overcount_branch_cluster_pts(:, 2), overcount_branch_cluster_pts(:, 3), '.r', 'MarkerSize', 30);
+                            plot3(critical_pts(:, 1), critical_pts(:, 2), critical_pts(:, 3), '.y', 'MarkerSize', 30);
+                            xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
 
-                    if SHOW_CLUSTER_MERGE
-                        figure('Name', ['Cluster ' num2str(j) 'merge'])
-                        subplot(1, 2, 1)
-                        pcshow(original_pt_normalized, 'MarkerSize', 30); hold on; set(gcf, 'color', 'white')
-                        plot3(neighbor_cluster_pts(:, 1), neighbor_cluster_pts(:, 2), neighbor_cluster_pts(:, 3), '.b', 'MarkerSize', 30);
-                        plot3(overcount_branch_cluster_pts(:, 1), overcount_branch_cluster_pts(:, 2), overcount_branch_cluster_pts(:, 3), '.r', 'MarkerSize', 30);
-                        plot3(critical_pts(:, 1), critical_pts(:, 2), critical_pts(:, 3), '.y', 'MarkerSize', 30);
-                        xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
+                            tmp_id = 1:length(distance_list) + 1;
+                            subplot(1, 2, 2)
+                            plot(tmp_id, [distance_list, d_min]); hold on
+                            plot(tmp_id, [distance_list, d_min], '.r', 'MarkerSize', 20);
+                            title(['Average distance ', num2str(avg_distance, '%.4f')], ['Merge distance ', num2str(d_min, '%.4f')], 'color', [1, 0, 0])
+                        end
 
-                        tmp_id = 1:length(distance_list) + 1;
-                        subplot(1, 2, 2)
-                        plot(tmp_id, [distance_list, d_min]); hold on
-                        plot(tmp_id, [distance_list, d_min], '.r', 'MarkerSize', 20);
-                        title(['Average distance ', num2str(avg_distance, '%.4f')], ['Merge distance ', num2str(d_min, '%.4f')], 'color', [1, 0, 0])
-                    end
+                        if d_min < merge_threshold
+                            visited2(tmp_index(k)) = 1;
+                            [~, ii] = ismember(overcount_branch_cluster_pts, P.spls, 'row');
+                            branch_pts_idx{tmp_index(k)} = [branch_pts_idx{tmp_index(k)}; ii];
+                            break;
+                        end
 
-                    if d_min < merge_threshold
-                        visited2(tmp_index(k)) = 1;
-                        [~, ii] = ismember(overcount_branch_cluster_pts, P.spls, 'row');
-                        branch_pts_idx{tmp_index(k)} = [branch_pts_idx{tmp_index(k)}; ii];
-                        break;
                     end
 
                 end
@@ -1204,34 +1245,48 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
 
         end
 
-        figure('Name', 'Refined entire branch identification')
-        pcshow(original_pt_normalized, 'MarkerSize', 30); hold on
-
-        colors = {'red', 'blue', 'yellow', 'green', 'cyan', 'magenta', 'white'};
-
-        for i = 1:branch_counter
-            cur_branch_pts_idx = branch_pts_idx{i};
-            cur_branch_pts = P.spls(cur_branch_pts_idx, :);
-            tmp_pts = cur_branch_pts(1, :);
-            plot3(cur_branch_pts(:, 1), cur_branch_pts(:, 2), cur_branch_pts(:, 3), '.', 'Color', colors{rem(i, length(colors)) + 1}, 'MarkerSize', 20);
-            text(tmp_pts(1), tmp_pts(2), tmp_pts(3) + 0.02, num2str(i), 'Color', 'red', 'HorizontalAlignment', 'left', 'FontSize', 12);
-        end
-
-        title(['Clusters: ', num2str(branch_counter)], 'color', [1, 0, 0]);
-        xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
     end
 
-    % primary branch identification
-    % same to main trunk detection, find the point providing the maximum path weight
+    figure('Name', 'Refined entire branch identification')
+    pcshow(original_pt_normalized, 'MarkerSize', 30); hold on
+
+    colors = {'red', 'blue', 'yellow', 'green', 'cyan', 'magenta', 'white'};
+
+    for i = 1:branch_counter
+        cur_branch_pts_idx = branch_pts_idx{i};
+        cur_branch_pts = P.spls(cur_branch_pts_idx, :);
+        tmp_pts = cur_branch_pts(1, :);
+        plot3(cur_branch_pts(:, 1), cur_branch_pts(:, 2), cur_branch_pts(:, 3), '.', 'Color', colors{rem(i, length(colors)) + 1}, 'MarkerSize', 20);
+        text(tmp_pts(1), tmp_pts(2), tmp_pts(3) + 0.02, num2str(i), 'Color', 'red', 'HorizontalAlignment', 'left', 'FontSize', 12);
+    end
+
+    title(['Clusters: ', num2str(branch_counter)], 'color', [1, 0, 0]);
+    xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
+
+    %%-------------------------------------------------------------------%%
+    %%-------------------Primary Branch Identification-------------------%%
+    %% same to main trunk detection
+    %% find the point providing the maximum path weight    
+    %%-------------------------------------------------------------------%%
     primary_branch_pts_idx = {}; % index in terms of P.spls
 
     for j = 1:branch_counter
         cur_branch_pts_idx = branch_pts_idx{j};
         branch_pts = P.spls(cur_branch_pts_idx, :);
         MST = MST_list{j};
+        MST_node = MST_node_list{j};
 
         [~, ~, col] = find_internode(branch_pts, refined_main_trunk_pts, 0.1, false);
         [~, branch_internode_index_in_rest_pts] = ismember(branch_pts(col, :), rest_pts, 'row');
+
+        % internode might not be included in MST (small possibility)
+        d_m = pdist2(double(branch_pts), double(branch_pts(col, :)));
+        [~, tmp_index] = mink(d_m, size(branch_pts, 1));
+        while ~ismember(branch_internode_index_in_rest_pts, MST_node)
+            tmp_index(1) = [];
+            col = tmp_index(1);
+            [~, branch_internode_index_in_rest_pts] = ismember(branch_pts(col, :), rest_pts, 'row');
+        end
 
         shortest_path_nodes = cell(size(branch_pts, 1), 1);
         shortest_path_distance = zeros(size(branch_pts, 1), 1);
