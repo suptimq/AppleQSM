@@ -13,13 +13,10 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     % plot and save figures
     SAVE_FIG = options.SAVE_FIG;
     SHOW_CLUSTER_SPLIT = options.SHOW_CLUSTER_SPLIT;
-    SHOW_CLUSTER_MERGE = options.SHOW_CLUSTER_MERGE;
 
     skel_filename_format = '_contract_*_skeleton.mat';
     skel_filename = search_skeleton_file(tree_id, skel_folder, skel_filename_format);
     paras_filename = [exp_id '_parameters.mat'];
-    manual_measurement_filepath = 'D:\Code\Apple_Crop_Potential_Prediction\data\Field_Measurements.xlsx';
-    manual_measurement_data = readtable(manual_measurement_filepath, 'Sheet', tree_id);
 
     branch_folder = fullfile(data_folder, [tree_id '_branch']);
     files = dir(fullfile(branch_folder, 'Section*.ply'));
@@ -40,6 +37,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
 
     %% load data
     skel_filepath = fullfile(skel_folder, skel_filename);
+    new_skel_filepath = fullfile(output_folder, skel_filename);
     load(skel_filepath, 'P'); % P results from skeleton operation
 
     if exist(paras_filepath, 'file') && LOAD_PARAS
@@ -323,7 +321,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
         P.trunk_cpc_optimized_confidence = trunk_cpc_optimized_confidence;
         P.trunk_pc = trunk_pc;
         P.trunk_radius = trunk_radius;
-        save(skel_filepath, 'P');
+        save(new_skel_filepath, 'P');
 
         disp(['xy radius: ' num2str(trunk_refinement_options.xy_radius)]);
         disp(['z radius: ' num2str(trunk_refinement_options.z_radius)]);
@@ -441,6 +439,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     crotch_pts_index = sphere_pruning(P, refined_main_trunk_pts_idx, sphere_radius);
     crotch_pts = P.spls(crotch_pts_index, :);
     crotch_pts = sortrows(crotch_pts, 3);
+    disp('===================Sort crotch points by Z-axis===================');
     disp(['sphere pruning radius: ' num2str(sphere_radius)]);
 
     %% DBSCAN clustering
@@ -454,20 +453,6 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     unique_cluster_label = unique(cluster_label);
     disp(['dbscan eps: ' num2str(eps)]);
     disp(['dbscan min samples: ' num2str(min_samples)]);
-
-    %% Euclidean clustering
-    % disp('===================Running Euclidean clustering on crotch points===================')
-    % noise_label = 0;
-    % minDistance = 0.03;
-    % minPoints = 3;
-    % crotch_pc = pointCloud(crotch_pts);
-    % [cluster_label, ~] = pcsegdist(crotch_pc, minDistance, 'NumClusterPoints', minPoints, 'ParallelNeighborSearch', true);
-    % noise_pts = crotch_pts(cluster_label==noise_label, :);
-    % crotch_pts = crotch_pts(cluster_label~=noise_label, :);
-    % cluster_label = cluster_label(cluster_label~=noise_label);
-    % unique_cluster_label = unique(cluster_label);
-    % disp(['dbscan min distance: ' num2str(minDistance)]);
-    % disp(['dbscan min samples: ' num2str(minPoints)]);
 
     figure('Name', 'Results from Clustering')
     ax1 = subplot(1, 3, 1);
@@ -517,9 +502,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     %% split under-segmented clusters
     %% 1. check if the cluster contains multiple branches
     %% 2. find the critical point and split multiple branches
-    %% remove over-segmented clusters
-    %% 1. find the intersection point of branch cluster and trunk
-    %% 2. calculate the closest distance
+    %% intrisically, sort branch points by their distance to trunk
     %%----------------------------------------------------------%%
     cluster_counter = 0;
     unique_updated_cluster_label = [];
@@ -950,8 +933,8 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
         [MST_max_length, MST_max_idx] = max(MSTs_length);
 
         % points are not connected in MST
-        if MST_max_length == 0
-            disp(['===================SKIP BRNACH ' num2str(i) 'Due to MST=0 ==================='])
+        if MST_max_length <= 3
+            disp(['===================SKIP BRNACH ' num2str(i) 'Due to MST <= 3 ', num2str(MST_max_length),  ' ==================='])
             continue
         end
 
@@ -972,7 +955,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
         visited(tmp) = visited(tmp) + 1;
 
         for k = 1:length(tmp)
-            visited_id{tmp(k)} = [visited_id{tmp(k)}, i];
+            visited_id{tmp(k)} = [visited_id{tmp(k)}, branch_counter];
         end
 
         branch_pts_idx{branch_counter} = tmp;
@@ -1323,7 +1306,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
         P.side_branch_confidence = side_confidence;
         P.side_center_size = side_center_size;
 
-        save(skel_filepath, 'P');
+        save(new_skel_filepath, 'P');
 
         disp(['sphere radius: ' num2str(branch_refinement_options.sphere_radius)]);
         disp(['maximum length: ' num2str(branch_refinement_options.maximum_length)]);
@@ -1350,6 +1333,9 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
         pcshow(P.branch_pc, 'Markersize', 30); hold on
         plot_by_weight(valid_centers, valid_radii / trunk_radius);
         xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); axis equal; grid on;
+    
+        Link = linkprop([ax1, ax2], {'CameraUpVector', 'CameraPosition', 'CameraTarget', 'XLim', 'YLim', 'ZLim'});
+        setappdata(gcf, 'StoreTheLink', Link);
     end
 
     disp('================Segmention Done================');
