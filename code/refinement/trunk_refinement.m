@@ -42,7 +42,7 @@ function [cpc_optimzed_center, cpc_optimized_radius, cpc_optimized_confidence, t
                 index = (neighboring_pc.Location(:, 3) >= start) & (neighboring_pc.Location(:, 3) <= start + maximum_length);
                 in_between_pts = neighboring_pc.Location(index, :);
 
-                if ~isempty(in_between_pts)
+                if size(in_between_pts, 1) > 1
                     center = cpc_optimization(in_between_pts);
                     radius = mean(pdist2(double(center), double(in_between_pts)));
 
