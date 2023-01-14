@@ -5,5 +5,6 @@
 .vscode/
 
 
-data/segmentation
 data/skeleton
+data/segmentation
+data/characterization
