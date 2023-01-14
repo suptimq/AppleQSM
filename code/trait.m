@@ -1,21 +1,23 @@
 function trait(tree_id, skel_folder, exp_id, excel_filename, options)
 
     SHOW = options.SHOW;
+    SHOW_BRANCH = options.SHOW_BRANCH;
     SAVE = options.SAVE;
     CLEAR = options.CLEAR;
     TO_FUSION = options.TO_FUSION;
 
-    skel_filename_format = '_contract_*_skeleton';
+    skel_filename_format = '_contract_*_skeleton.mat';
     skel_filename = search_skeleton_file(tree_id, skel_folder, skel_filename_format);
-    output_folder = fullfile(skel_folder, exp_id);
-    save_folder = fullfile('D:\skeletonization-master\cloudcontr_2_0\data\Alan\', tree_id);
+    segmentation_folder = fullfile(skel_folder, '..', 'segmentation', exp_id);
+    output_folder = fullfile(skel_folder, '..', 'characterization', exp_id);
+    cad_save_folder = fullfile('D:\skeletonization-master\cloudcontr_2_0\data\Alan\', tree_id);
 
     %% create folder to save results
     if ~exist(output_folder, 'dir')
         mkdir(output_folder)
     end
 
-    skel_filepath = fullfile(skel_folder, [skel_filename '.mat']);
+    skel_filepath = fullfile(segmentation_folder, skel_filename);
     load(skel_filepath, 'P'); % P results from skeleton operation
 
     start = 0;
@@ -35,7 +37,7 @@ function trait(tree_id, skel_folder, exp_id, excel_filename, options)
 
     trunk_skeleton_pts = P.trunk_cpc_optimized_center;
     if TO_FUSION
-        save(fullfile(save_folder, 'trunk_skeleton_pts'), 'trunk_skeleton_pts');
+        save(fullfile(cad_save_folder, 'trunk_skeleton_pts'), 'trunk_skeleton_pts');
     end
     
 %     ratio_distance_list = P.trunk_internode_distance_ratio;
@@ -70,7 +72,7 @@ function trait(tree_id, skel_folder, exp_id, excel_filename, options)
         primary_spline_pts_radius = median(primary_branch_pts_radius(spline_nn_index), 2, 'omitnan');
 
         if TO_FUSION
-            save(fullfile(save_folder, ['branch_' num2str(i), '_skeleton_pts']), 'primary_spline_pts');
+            save(fullfile(cad_save_folder, ['branch_' num2str(i), '_skeleton_pts']), 'primary_spline_pts');
         end
 
         % fit trunk vector - only use trunk points that are close to the
@@ -99,7 +101,7 @@ function trait(tree_id, skel_folder, exp_id, excel_filename, options)
             branch_diameter_list = [branch_diameter_list, radius];
         end
 
-        if SHOW
+        if SHOW_BRANCH
             figure('Name', ['Branch ', num2str(i), ' spline'])
             subplot(1, 2, 1)
             plot3(sliced_main_trunk_pts_inlier(:, 1), sliced_main_trunk_pts_inlier(:, 2), sliced_main_trunk_pts_inlier(:, 3), '.r', 'Markersize', 30); hold on
@@ -150,9 +152,9 @@ function trait(tree_id, skel_folder, exp_id, excel_filename, options)
     end
 
     if TO_FUSION
-        save(fullfile(save_folder, 'trunk_internode_ratio'), 'save_ratio_distance');
-        save(fullfile(save_folder, 'branch_diameter'), 'branch_diameter_list');
-        save(fullfile(save_folder, 'branch_angle'), 'branch_angle_list');
+        save(fullfile(cad_save_folder, 'trunk_internode_ratio'), 'save_ratio_distance');
+        save(fullfile(cad_save_folder, 'branch_diameter'), 'branch_diameter_list');
+        save(fullfile(cad_save_folder, 'branch_angle'), 'branch_angle_list');
     end
 
     if SAVE
