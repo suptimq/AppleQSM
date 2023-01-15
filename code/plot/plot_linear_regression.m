@@ -1,6 +1,6 @@
-data_folder = 'D:\skeletonization-master\cloudcontr_2_0\result\LLC_Orchard\02022022\hilbertcurve_normalized_skeleton_7_iter';
-experiment_name = 'CPC_Derived';
-filename = 'all_tree_101_test4.csv';
+data_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\characterization\characterization_final\';
+experiment_name = 'all_characterization';
+filename = 'all_tree.csv';
 csv_filepath = fullfile(data_folder, experiment_name, filename);
 
 %% load data
@@ -10,7 +10,7 @@ x_label = 'Estimation';
 y_label = 'Field Measurement';
 
 %% linear regression and robust linear linear regression
-col_index = [3, 5]; % [7, 6]
+col_index = [3, 6]; % [7, 6]
 subtable = all_tree_data(:, col_index);
 
 x = subtable{:, 1};
@@ -47,7 +47,7 @@ title('Crotch Angle');
 xlabel(x_label); ylabel(y_label); grid on;
 
 %% branch diameter
-col_index = [7, 6];
+col_index = [8, 7];
 subtable = all_tree_data(:, col_index);
 
 x = subtable{:, 1};
