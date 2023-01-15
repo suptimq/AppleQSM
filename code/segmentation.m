@@ -1046,14 +1046,15 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
 
             assert(length(unique_overcount_branch_cluster_label)==length(visited_group), 'Error');
 
-            visited2 = zeros(num_split_cluster, 1);
+            visited_group_angle = cell(length(visited_group), 1);
+            new_cluster_pts = cell(length(unique_overcount_branch_cluster_label), 1);
             for j = 1:length(unique_overcount_branch_cluster_label)
 
                 tmp_cluster_label = unique_overcount_branch_cluster_label(j);
                 tmp_index = overcount_branch_cluster_label == tmp_cluster_label;
                 overcount_branch_cluster_pts = overcount_branch_pts(tmp_index, :); 
+                new_cluster_pts{j} = overcount_branch_cluster_pts;
 
-                angle_diff_list = [];
                 for k = 1:length(visited_group)
                     group_id = visited_group(k);
                     neighbor_cluster_pts = valid_cluster_pts_cell{group_id};
@@ -1074,18 +1075,25 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
 
                     % compute angle
                     [pts_vector2, pts_vector_angle2] = point_to_point_angle(critical_pts);
-                    angle_diff_list = [angle_diff_list; pts_vector_angle2];
+                    visited_group_angle{k} = [visited_group_angle{k}, pts_vector_angle2];
                 end
 
-                [~, tmp_index] = mink(angle_diff_list, length(visited_group));
+            end
+
+            % for each branch root cluster, find the over-seg cluster with
+            % minimum angle difference
+            visited2 = zeros(length(unique_overcount_branch_cluster_label), 1);
+            for j = 1:length(visited_group)
+                angles = visited_group_angle{j};
+                [~, tmp_index] = mink(angles, length(unique_overcount_branch_cluster_label));
                 while visited2(tmp_index(1))
                     tmp_index(1) = [];
                 end
                 visited2(tmp_index(1)) = 1;
+                overcount_branch_cluster_pts = new_cluster_pts{tmp_index(1)};
                 [~, ii] = ismember(overcount_branch_cluster_pts, P.spls, 'row');
-                merge_group_id = visited_group(tmp_index(1));
+                merge_group_id = visited_group(j);
                 branch_pts_idx{merge_group_id} = [branch_pts_idx{merge_group_id}; ii];
-
             end
 
         end
