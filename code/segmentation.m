@@ -47,7 +47,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     % visualization purpose only and show the original point clouds
     original_pt_normalized = P.original_pt;
     original_pt_normalized_location = original_pt_normalized.Location;
-    desired_pt = 10000;
+    desired_pt = 30000;
     ratio = desired_pt / original_pt_normalized.Count;
     pt = pcdownsample(original_pt_normalized, 'random', ratio); % visualization purpose only!
 
@@ -895,7 +895,8 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
 
     branch_counter = 0;
     branch_pts_idx = {}; % index in terms of P.spls
-    valid_cluster_pts_cell = {};
+    valid_cluster_pts_cell = {}; % valid branch root clusters
+    internode_pair = {}; % valid trunk and branch internodes
     visited = zeros(size(P.spls, 1), 1); % if points have been already assigned to one of primary branches
     visited_id = cell(size(P.spls, 1), 1);
     MST_list = {};
@@ -938,8 +939,11 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
             continue
         end
 
+        [sliced_main_trunk_pts, row, col] = find_internode(double(cur_cluster_pts), refined_main_trunk_pts, 0.1, false);
+
         branch_counter = branch_counter + 1;
         valid_cluster_pts_cell{branch_counter} = cur_cluster_pts;
+        internode_pair{branch_counter} = [sliced_main_trunk_pts(row, :); cur_cluster_pts(col, :)];
 
         [~, MST_max_idx] = max(MSTs_length);
         branch_point_idx_max_MST = cur_cluster_pts_idx(MST_max_idx); % index in rest_pts
@@ -1058,7 +1062,12 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
                     distance_matrix = pdist2(double(neighbor_cluster_pts), double(overcount_branch_cluster_pts));
                     [d_min, d_tmp_index] = min(distance_matrix(:));
                     [row, col] = ind2sub(size(distance_matrix), d_tmp_index);
-                    tmp_pts1 = neighbor_cluster_pts(row-1, :);
+                    if row == 1
+                        tmp_internodes = internode_pair{group_id};
+                        tmp_pts1 = tmp_internodes(1, :);
+                    else
+                         tmp_pts1 = neighbor_cluster_pts(row-1, :);
+                    end
                     tmp_pts2 = neighbor_cluster_pts(row, :);
                     tmp_pts3 = overcount_branch_cluster_pts(col, :);
                     critical_pts = [tmp_pts1; tmp_pts2; tmp_pts3];
@@ -1149,7 +1158,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
 
     figure('Name', 'Primary branch identification')
     ax1 = subplot(1, 2, 1);
-    pcshow(original_pt_normalized, 'MarkerSize', 30); hold on
+    pcshow(pt, 'MarkerSize', 30); hold on
 
     colors = {'red', 'blue', 'yellow', 'green', 'cyan', 'magenta', 'white'};
 
@@ -1165,7 +1174,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
 
     ax2 = subplot(1, 2, 2);
-    pcshow(original_pt_normalized, 'MarkerSize', 30); hold on
+    pcshow(pt, 'MarkerSize', 30); hold on
     %% visualization of field measurement
     for i = 1:length(files)
         filename = files(i).name;
@@ -1203,6 +1212,8 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
 
     Link = linkprop([ax1, ax2], {'CameraUpVector', 'CameraPosition', 'CameraTarget', 'XLim', 'YLim', 'ZLim'});
     setappdata(gcf, 'StoreTheLink', Link);
+
+    saveas(gcf, fullfile(output_folder, tree_id));
 
     if BRANCH_REFINEMENT
         %%-----------------------------------------------------%%
