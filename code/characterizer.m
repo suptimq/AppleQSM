@@ -32,10 +32,10 @@ options.SAVE = true;
 options.CLEAR = false;
 options.TO_FUSION = false;
 
-for i = 6
+for i = 9
     disp(['=========Tree ' num2str(i) ' ========='])
     file = files(i).name;
     [filepath, name, ext] = fileparts(file);
-%     segmentation(data_folder, skel_folder, name, exp_id, options);
-    trait(name, skel_folder, exp_id, '_branch_test.xlsx', options);
+    segmentation(data_folder, skel_folder, name, exp_id, options);
+%     trait(name, skel_folder, exp_id, '_branch_test.xlsx', options);
 end

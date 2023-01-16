@@ -504,6 +504,15 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     %% 2. find the critical point and split multiple branches
     %% intrisically, sort branch points by their distance to trunk
     %%----------------------------------------------------------%%
+
+    pp_fig = figure(100);
+    set(gcf, 'Name', 'Post-Process Clusters', 'NumberTitle','off');
+    ax1 = subplot(1, 3, 1);
+    pcshow(original_pt_normalized, 'markersize', 40); hold on
+    plot_dbscan_clusters(crotch_pts, cluster_label);
+    xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
+    title(['Initial clusters: ', num2str(length(unique_cluster_label))], 'color', [1, 0, 0]);
+
     cluster_counter = 0;
     unique_updated_cluster_label = [];
     updated_cluster_label = [];
@@ -773,6 +782,13 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
 
     end
 
+    figure(100)
+    ax2 = subplot(1, 3, 2);
+    pcshow(original_pt_normalized, 'markersize', 40); hold on
+    plot_dbscan_clusters(updated_cluster_pts_list, updated_cluster_label);
+    xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
+    title(['Splitted clusters: ', num2str(cluster_counter)], 'color', [1, 0, 0]);
+
     %%----------------------------------------------------------%%
     %%-------------------Post-Process Cluster-------------------%%
     %% remove over-segmented clusters
@@ -784,6 +800,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     tmp_updated_cluster_pts_cell = {};
     tmp_updated_cluster_pts_list = [];
     tmp_updated_cluster_label = [];
+    noise_cluster_pts_list = [];
     cluster_counter = 0;
     internode_point_distance = [];
 
@@ -832,6 +849,8 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
             tmp_updated_cluster_pts_cell{cluster_counter} = cur_cluster_pts;
             tmp_updated_cluster_pts_list = [tmp_updated_cluster_pts_list; cur_cluster_pts];
             tmp_updated_cluster_label = [tmp_updated_cluster_label; ones(size(cur_cluster_pts, 1), 1) * cluster_counter];
+        else
+            noise_cluster_pts_list = [noise_cluster_pts_list; cur_cluster_pts];
         end
 
         %         figure('Name', ['Cluster ', num2str(i)])
@@ -850,21 +869,15 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     updated_cluster_pts_list = tmp_updated_cluster_pts_list;
     updated_cluster_label = tmp_updated_cluster_label;
 
-    %% visualization of initial and refined branch clustering
-    figure('Name', '2nd DBSCAN clusters')
-    ax1 = subplot(1, 2, 1);
-    pcshow(original_pt_normalized, 'markersize', 40); hold on
-    plot_dbscan_clusters(crotch_pts, cluster_label);
-    xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
-    title(['Initial clusters: ', num2str(length(unique_cluster_label))], 'color', [1, 0, 0]);
-
-    ax2 = subplot(1, 2, 2);
+    figure(100)
+    ax3 = subplot(1, 3, 3);
     pcshow(original_pt_normalized, 'markersize', 40); hold on
     plot_dbscan_clusters(updated_cluster_pts_list, updated_cluster_label);
+    plot3(noise_cluster_pts_list(:, 1), noise_cluster_pts_list(:, 2), noise_cluster_pts_list(:, 3), '.r', 'MarkerSize', 15);
     xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
-    title(['Refined clusters: ', num2str(length(unique_updated_cluster_label))], 'color', [1, 0, 0]);
+    title(['Removed fake clusters: ', num2str(length(unique_updated_cluster_label))], 'color', [1, 0, 0]);
 
-    Link = linkprop([ax1, ax2], {'CameraUpVector', 'CameraPosition', 'CameraTarget', 'XLim', 'YLim', 'ZLim'});
+    Link = linkprop([ax1, ax2, ax3], {'CameraUpVector', 'CameraPosition', 'CameraTarget', 'XLim', 'YLim', 'ZLim'});
     setappdata(gcf, 'StoreTheLink', Link);
 
     %%---------------------------------------------------------%%
