@@ -3,10 +3,11 @@
 *.asv
 *.png
 .vscode/
-
+*.ply
 
 data/skeleton
 data/segmentation
 data/characterization
+data/*_branch
 
 logfile
