@@ -8,16 +8,19 @@ function trait(tree_id, skel_folder, exp_id, excel_filename, options)
 
     skel_filename_format = '_contract_*_skeleton.mat';
     skel_filename = search_skeleton_file(tree_id, skel_folder, skel_filename_format);
-    segmentation_folder = fullfile(skel_folder, '..', 'segmentation', exp_id);
     output_folder = fullfile(skel_folder, '..', 'characterization', exp_id);
-    cad_save_folder = fullfile('D:\skeletonization-master\cloudcontr_2_0\data\Alan\', tree_id);
+    cad_save_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\Fusion\';
 
     %% create folder to save results
     if ~exist(output_folder, 'dir')
         mkdir(output_folder)
     end
 
-    skel_filepath = fullfile(segmentation_folder, skel_filename);
+    if ~exist(cad_save_folder, 'dir')
+        mkdir(cad_save_folder)
+    end
+
+    skel_filepath = fullfile(skel_folder, exp_id, skel_filename);
     load(skel_filepath, 'P'); % P results from skeleton operation
 
     start = 0;
@@ -36,12 +39,9 @@ function trait(tree_id, skel_folder, exp_id, excel_filename, options)
     end
 
     trunk_skeleton_pts = P.trunk_cpc_optimized_center;
-    if TO_FUSION
-        save(fullfile(cad_save_folder, 'trunk_skeleton_pts'), 'trunk_skeleton_pts');
-    end
-    
-%     ratio_distance_list = P.trunk_internode_distance_ratio;
-    save_ratio_distance = [];
+    trunk_internode_ratio = P.trunk_internode_distance_ratio;
+
+    branch_internode_ratio = [];
     branch_angle_list = [];
     branch_diameter_list = [];
 
@@ -56,10 +56,9 @@ function trait(tree_id, skel_folder, exp_id, excel_filename, options)
         [sliced_main_trunk_pts, row, col] = find_internode(double(primary_branch_pts), double(trunk_skeleton_pts), 0.2);
         trunk_internode = sliced_main_trunk_pts(row, :);
         branch_internode = primary_branch_pts(col, :);
-
+        
         [~, index] = ismember(trunk_internode, trunk_skeleton_pts, 'row');
-%         ratio_distance = ratio_distance_list(index);
-%         save_ratio_distance = [save_ratio_distance, ratio_distance];
+        ratio_distance = trunk_internode_ratio(index);
         trunk_radius = P.trunk_cpc_optimized_radius(index);
 
         %% use the spline information to estimate diameter and angle
@@ -71,14 +70,13 @@ function trait(tree_id, skel_folder, exp_id, excel_filename, options)
         [spline_nn_index, ~] = knnsearch(kdtree, primary_spline_pts, 'K', 3);
         primary_spline_pts_radius = median(primary_branch_pts_radius(spline_nn_index), 2, 'omitnan');
 
-        if TO_FUSION
-            save(fullfile(cad_save_folder, ['branch_' num2str(i), '_skeleton_pts']), 'primary_spline_pts');
-        end
-
         % fit trunk vector - only use trunk points that are close to the
         % internode
         min_samples = 3; residual_threshold = 0.005; max_trials = 1e3;
         [v1, inliers, ~] = ransac_py(sliced_main_trunk_pts, '3D_Line', min_samples, residual_threshold, max_trials);
+        if v1(end) < 0
+            v1(end) = -v1(end);
+        end
         sliced_main_trunk_pts_inlier = sliced_main_trunk_pts(inliers == 1, :);
         sliced_main_trunk_pts_outlier = sliced_main_trunk_pts(inliers ~= 1, :);
 
@@ -97,6 +95,7 @@ function trait(tree_id, skel_folder, exp_id, excel_filename, options)
         radius = median(tmp_radius(index), 'omitnan') * 1e3;
 
         if TO_FUSION
+            branch_internode_ratio = [branch_internode_ratio, ratio_distance];
             branch_angle_list = [branch_angle_list, vertical_angle];
             branch_diameter_list = [branch_diameter_list, radius];
         end
@@ -152,9 +151,10 @@ function trait(tree_id, skel_folder, exp_id, excel_filename, options)
     end
 
     if TO_FUSION
-        save(fullfile(cad_save_folder, 'trunk_internode_ratio'), 'save_ratio_distance');
-        save(fullfile(cad_save_folder, 'branch_diameter'), 'branch_diameter_list');
-        save(fullfile(cad_save_folder, 'branch_angle'), 'branch_angle_list');
+        P.branch_internode_ratio = branch_internode_ratio;
+        P.branch_diameter = branch_diameter_list;
+        P.branch_angle = branch_angle_list;
+        save(fullfile(cad_save_folder, skel_filename), 'P');
     end
 
     if SAVE
