@@ -22,6 +22,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     files = dir(fullfile(branch_folder, 'Section*.ply'));
 
     output_folder = fullfile(skel_folder, '..', 'segmentation', exp_id);
+    new_skel_folder = fullfile(skel_folder, exp_id);
     log_filepath = fullfile(output_folder, [tree_id '_log']);
     paras_filepath = fullfile(output_folder, paras_filename);
     paras = struct();
@@ -35,9 +36,13 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
         mkdir(output_folder)
     end
 
+    if ~exist(new_skel_folder, 'dir')
+        mkdir(new_skel_folder)
+    end
+
     %% load data
     skel_filepath = fullfile(skel_folder, skel_filename);
-    new_skel_filepath = fullfile(output_folder, skel_filename);
+    new_skel_filepath = fullfile(new_skel_folder, skel_filename);
     load(skel_filepath, 'P'); % P results from skeleton operation
 
     if exist(paras_filepath, 'file') && LOAD_PARAS
@@ -250,6 +255,42 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     disp(['graph edge coefficient alpha2: ' num2str(coefficient_density_weight)]);
     disp(['density search range: ' num2str(density_search_range)]);
 
+    % main trunk refinement (heritage issue)
+    disp('===================Trunk Skeleton Refinement (Heritage)===================');
+    P.main_trunk_height = main_trunk_endpoint(3) - min(P.spls(:, 3)); % height before normalization
+    main_trunk_refine_range = load_parameters(paras, 'main_trunk_refine_range', P.sample_radius);
+    new_main_trunk_pts_idx = zeros(0, 1);
+
+    for i = 1:length(main_trunk_pts_idx) - 1
+        v1 = P.spls(main_trunk_pts_idx(i), :);
+        v2 = P.spls(main_trunk_pts_idx(i + 1), :);
+
+        v1_z = v1(3);
+        v2_z = v2(3);
+        pts_idx = find(P.spls(:, 3) >= v1_z & P.spls(:, 3) <= v2_z);
+
+        for j = 1:size(pts_idx, 1)
+            cur_pt = P.spls(pts_idx(j), :);
+            distance = point_to_line_distance(cur_pt, v1, v2);
+
+            if distance < main_trunk_refine_range
+                new_main_trunk_pts_idx(end + 1, 1) = pts_idx(j);
+            end
+
+        end
+
+    end
+
+    refined_main_trunk_pts_idx = [main_trunk_pts_idx; new_main_trunk_pts_idx];
+    refined_main_trunk_pts_idx = unique(refined_main_trunk_pts_idx);
+    refined_main_trunk_pts = P.spls(refined_main_trunk_pts_idx, :);
+    refined_main_trunk_pts = sortrows(refined_main_trunk_pts, 3);
+    [~, refined_main_trunk_pts_idx] = ismember(refined_main_trunk_pts, P.spls, 'row');
+    rest_pts_idx = setdiff(1:size(P.spls, 1), refined_main_trunk_pts_idx);
+    rest_pts = P.spls(rest_pts_idx, :);
+
+    disp(['main trunk refine range: ' num2str(main_trunk_refine_range)]);
+
     %%---------------------------------------------------------%%
     %%-------------------Trunk Diameter Est.-------------------%%
     %% compute trunk diameter using least square fitting
@@ -265,6 +306,13 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     min_samples = load_parameters(paras, 'ransac_trunk_diameter_min_sample', 30);
     residual_threshold = load_parameters(paras, 'ransac_trunk_diameter_threshold', 0.005);
     max_trials = load_parameters(paras, 'ransac_trunk_diameter_trials', 100);
+
+    while size(fitting_pts, 1) < min_samples
+        min_samples = min_samples / 2;
+        if min_samples < 5
+            error('Not Enough Points for Trunk Diameter Estimation!');
+        end
+    end
 
     [ellipse, inliers, outliers] = ransac_py(fitting_pts(:, 1:2), 'Ellipse', min_samples, residual_threshold, max_trials);
     xc = ellipse(1); yc = ellipse(2); radius_x = ellipse(3); radius_y = ellipse(4); theta = ellipse(5); trunk_radius = (radius_x + radius_y) / 2;
@@ -346,8 +394,11 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
         setappdata(gcf, 'StoreTheLink', Link);
     end
 
+    if isfield(P, 'trunk_cpc_optimized_center')
+        refined_main_trunk_pts = P.trunk_cpc_optimized_center;
+    end
+
     distance_list = [];
-    refined_main_trunk_pts = P.trunk_cpc_optimized_center;
 
     for i = 1:size(refined_main_trunk_pts, 1) - 1
         distance_ = pdist([refined_main_trunk_pts(i); refined_main_trunk_pts(i + 1)]);
@@ -358,58 +409,10 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     P.main_trunk_length = sum(distance_list);
     P.trunk_internode_distance_ratio = ratio_distance_list;
 
-    % main trunk refinement (heritage issue)
-    disp('===================Trunk Skeleton Refinement (Heritage)===================');
-    P.main_trunk_height = main_trunk_endpoint(3) - min(P.spls(:, 3)); % height before normalization
-    main_trunk_refine_range = load_parameters(paras, 'main_trunk_refine_range', P.sample_radius);
-    new_main_trunk_pts_idx = zeros(0, 1);
-
-    for i = 1:length(main_trunk_pts_idx) - 1
-        v1 = P.spls(main_trunk_pts_idx(i), :);
-        v2 = P.spls(main_trunk_pts_idx(i + 1), :);
-
-        v1_z = v1(3);
-        v2_z = v2(3);
-        pts_idx = find(P.spls(:, 3) >= v1_z & P.spls(:, 3) <= v2_z);
-
-        for j = 1:size(pts_idx, 1)
-            cur_pt = P.spls(pts_idx(j), :);
-            distance = point_to_line_distance(cur_pt, v1, v2);
-
-            if distance < main_trunk_refine_range
-                new_main_trunk_pts_idx(end + 1, 1) = pts_idx(j);
-            end
-
-        end
-
-    end
-
-    refined_main_trunk_pts_idx = [main_trunk_pts_idx; new_main_trunk_pts_idx];
-    refined_main_trunk_pts_idx = unique(refined_main_trunk_pts_idx);
-    refined_main_trunk_pts = P.spls(refined_main_trunk_pts_idx, :);
-    refined_main_trunk_pts = sortrows(refined_main_trunk_pts, 3);
-    [~, refined_main_trunk_pts_idx] = ismember(refined_main_trunk_pts, P.spls, 'row');
-    rest_pts_idx = setdiff(1:size(P.spls, 1), refined_main_trunk_pts_idx);
-    rest_pts = P.spls(rest_pts_idx, :);
-
     figure('Name', 'Refined main trunk')
-    pcshow(P.spls, 'markersize', 50); hold on
-    plot3(root_point_max_MST(1), root_point_max_MST(2), root_point_max_MST(3), 'r.', 'markersize', 20);
-    plot3(refined_main_trunk_pts(:, 1), refined_main_trunk_pts(:, 2), refined_main_trunk_pts(:, 3), '.r', 'markersize', 15);
-    plot3(main_trunk_endpoint(1), main_trunk_endpoint(2), main_trunk_endpoint(3), 'r.', 'markersize', 20);
-    axis equal;
-
-    if SAVE_FIG
-        filename = fullfile(output_folder, 'refine_main_trunk');
-        saveas(gcf, filename);
-        axis off;
-        % view(0, -5);
-        print('-painters', '-dpdf', '-fillpage', '-r300', filename);
-    end
-
-    figure('Name', 'Refined main trunk and branch')
     subplot(1, 2, 1)
     pcshow(P.spls, 'markersize', 50); hold on
+    plot3(root_point_max_MST(1), root_point_max_MST(2), root_point_max_MST(3), 'r.', 'markersize', 20);
     plot3(refined_main_trunk_pts(:, 1), refined_main_trunk_pts(:, 2), refined_main_trunk_pts(:, 3), '.r', 'markersize', 15);
     title(['Height: ', num2str(P.main_trunk_height * 100, '%.0f'), ' cm'], 'color', [1, 0, 0]);
     axis equal;
@@ -425,8 +428,6 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
         saveas(gcf, filename);
     end
 
-    disp(['main trunk refine range: ' num2str(main_trunk_refine_range)]);
-
     %%---------------------------------------------------------%%
     %%-------------------Branch Root Cluster-------------------%%
     %% sphere pruning centering at trunk points
@@ -434,9 +435,8 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     %%---------------------------------------------------------%%
     %% pre-filter branch root points in crotch area
     disp('===================Running DBSCAN on crotch points===================');
-    refined_main_trunk_pts = P.trunk_cpc_optimized_center;
     sphere_radius = 6 * P.sample_radius;
-    crotch_pts_index = sphere_pruning(P, refined_main_trunk_pts_idx, sphere_radius);
+    crotch_pts_index = sphere_pruning(P.spls, refined_main_trunk_pts, refined_main_trunk_pts_idx, sphere_radius);
     crotch_pts = P.spls(crotch_pts_index, :);
     crotch_pts = sortrows(crotch_pts, 3);
     disp('===================Sort crotch points by Z-axis===================');
@@ -463,7 +463,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
 
     ax2 = subplot(1, 3, 2);
-    plot3(P.trunk_cpc_optimized_center(:, 1), P.trunk_cpc_optimized_center(:, 2), P.trunk_cpc_optimized_center(:, 3), '.r', 'markersize', 30); hold on
+    plot3(refined_main_trunk_pts(:, 1), refined_main_trunk_pts(:, 2), refined_main_trunk_pts(:, 3), '.r', 'markersize', 30); hold on
     plot3(rest_pts(:, 1), rest_pts(:, 2), rest_pts(:, 3), '.g', 'Markersize', 30);
     plot3(noise_pts(:, 1), noise_pts(:, 2), noise_pts(:, 3), '.yellow', 'markersize', 30);
     plot3(crotch_pts(:, 1), crotch_pts(:, 2), crotch_pts(:, 3), '.b', 'markersize', 30);
@@ -483,7 +483,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     figure('Name', '1st DBSCAN clusters')
     ax1 = subplot(1, 2, 1);
     pcshow(original_pt_normalized, 'MarkerSize', 30); hold on
-    plot3(P.trunk_cpc_optimized_center(:, 1), P.trunk_cpc_optimized_center(:, 2), P.trunk_cpc_optimized_center(:, 3), '.r', 'markersize', 30);
+    plot3(refined_main_trunk_pts(:, 1), refined_main_trunk_pts(:, 2), refined_main_trunk_pts(:, 3), '.r', 'markersize', 30);
     plot3(crotch_pts(:, 1), crotch_pts(:, 2), crotch_pts(:, 3), '.b', 'markersize', 30);
     title('Crotch points')
     xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
@@ -533,7 +533,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
 
     mean_internode_point_distance = mean(internode_point_distance);
     std_internode_point_distance = std(internode_point_distance);
-    point_distance_threshold = mean_internode_point_distance + 2 * std_internode_point_distance;
+    point_distance_threshold = mean_internode_point_distance + 3 * std_internode_point_distance;
 
     for i = 1:length(unique_cluster_label)
 
@@ -599,7 +599,9 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     ax2 = subplot(1, 2, 2);
     pcshow(original_pt_normalized, 'markersize', 40); hold on
     plot_dbscan_clusters(updated_cluster_pts_list, updated_cluster_label);
-    plot3(noise_cluster_pts_list(:, 1), noise_cluster_pts_list(:, 2), noise_cluster_pts_list(:, 3), '.r', 'MarkerSize', 15);
+    if ~isempty(noise_cluster_pts_list)
+        plot3(noise_cluster_pts_list(:, 1), noise_cluster_pts_list(:, 2), noise_cluster_pts_list(:, 3), '.r', 'MarkerSize', 15);
+    end
     xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
     title(['Removed fake clusters: ', num2str(length(unique_updated_cluster_label))], 'color', [1, 0, 0]);
 
@@ -966,8 +968,11 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
         %%-----------------------------------------------------%%
         %%-------------------Branch CPC-------------------%%
         %%-----------------------------------------------------%%
-        branch_refinement_options.sphere_radius = 0.01;
-        branch_refinement_options.maximum_length = 0.002;
+        % the ratio of sphere_radius/maximum_length is critical!
+        % branch_refinement_options.sphere_radius = 0.02;
+        % branch_refinement_options.maximum_length = 0.004;
+        branch_refinement_options.sphere_radius = 0.02;
+        branch_refinement_options.maximum_length = branch_refinement_options.sphere_radius / 5;
 
         primary_branch_pc_list = [];
         primary_center = [];
@@ -1010,7 +1015,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
             primary_center_size = [primary_center_size; size(primary_branch_cpc_optimized_center, 1)];
 
             % find trunk/branch internode
-            [sliced_main_trunk_pts, row, col] = find_internode(primary_branch_cpc_optimized_center, P.trunk_cpc_optimized_center, 0.2);
+            [sliced_main_trunk_pts, row, col] = find_internode(primary_branch_cpc_optimized_center, refined_main_trunk_pts, 0.2);
             trunk_internode = sliced_main_trunk_pts(row, :);
             branch_internode = primary_branch_cpc_optimized_center(col, :);
             internode_list = [internode_list; [trunk_internode, branch_internode]];
@@ -1064,6 +1069,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
         P.side_branch_confidence = side_confidence;
         P.side_center_size = side_center_size;
 
+        P.branch_pc = pccat([P.primary_branch_pc, P.side_branch_pc]);
         save(new_skel_filepath, 'P');
 
         disp(['sphere radius: ' num2str(branch_refinement_options.sphere_radius)]);
