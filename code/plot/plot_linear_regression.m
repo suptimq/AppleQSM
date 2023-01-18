@@ -1,5 +1,5 @@
-data_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\characterization\characterization_final\';
-experiment_name = 'all_characterization';
+data_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\characterization\';
+experiment_name = 'multiplier_by_3_cpc_sphere_radius_002';
 filename = 'all_tree.csv';
 csv_filepath = fullfile(data_folder, experiment_name, filename);
 
@@ -10,7 +10,7 @@ x_label = 'Estimation';
 y_label = 'Field Measurement';
 
 %% linear regression and robust linear linear regression
-col_index = [3, 6]; % [7, 6]
+col_index = [3, 5]; % [7, 6]
 subtable = all_tree_data(:, col_index);
 
 x = subtable{:, 1};
@@ -33,7 +33,7 @@ ymin = min(all_tree_data{:, col_index(2)});
 ymax = max(all_tree_data{:, col_index(2)});
 yinterval = (ymax-ymin) / 10;
 
-figure('Name', 'Regression')
+figure('Name', 'Regression', 'Position', get(0, 'Screensize'))
 subplot(1, 2, 1)
 scatter(x, y, 20, 'blue', 'filled'); hold on
 plot(x, bls(1) + bls(2) * x, 'r');
@@ -47,7 +47,7 @@ title('Crotch Angle');
 xlabel(x_label); ylabel(y_label); grid on;
 
 %% branch diameter
-col_index = [8, 7];
+col_index = [7, 6];
 subtable = all_tree_data(:, col_index);
 
 x = subtable{:, 1};
@@ -81,3 +81,4 @@ text(xmax-3*xinterval, ymin+1*yinterval, ['BLR-RMSE: ', num2str(mdblr.RMSE)], 'c
 title('Branch Diameter');
 xlabel(x_label); ylabel(y_label); grid on;
 
+saveas(gcf, fullfile(data_folder, experiment_name, 'MATLAB.png'));

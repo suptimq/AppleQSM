@@ -12,10 +12,10 @@ options.subsample_mode = 1; % Hilbert Curve
 options.USING_POINT_RING = GS.USING_POINT_RING;
 
 extension = '.ply';
-data_folder = 'D:\Data\Apple_Orchard\Lailiang_Cheng\LLC_02022022\Row13_Raw'; % folder storing original point cloud
+data_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data'; % folder storing original point cloud
 skel_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\skeleton'; % folder storing extracted skeleton
 
-files = dir([data_folder '\' 'tree*' extension]);
+files = dir([data_folder '\' '*' extension]);
 
 for i = 1
     filename = files(i).name;
