@@ -1,4 +1,9 @@
-function [] = plot_by_weight(spls, density)
+function [] = plot_by_weight(spls, density, show_colormap)
+
+    if nargin < 3
+        show_colormap = true;
+    end
+
     % define color of each point based on z value
     [~, ia, ic] = unique(abs(density));
     colors = jet(size(ia, 1));
@@ -30,5 +35,8 @@ function [] = plot_by_weight(spls, density)
 
     grid on
     box on
-    colormap(colors)
-    colorbar
+
+    if show_colormap
+        colormap(colors)
+        colorbar
+    end
