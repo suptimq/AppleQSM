@@ -179,13 +179,10 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     plot_connectivity(P.spls, MST_adj_matrix, sizee, colore);
     axis equal;
 
-    if SAVE_FIG
-        filename = fullfile(output_folder, 'MST_connectivity');
-        saveas(gcf, filename);
-        axis off;
-        view(0, -5);
-        print('-painters', '-dpdf', '-fillpage', '-r300', filename);
-    end
+    P.inverse_weighted_graph = inverse_weighted_graph;
+    P.inverse_weighted_graph_edge_weight = graph_weight;
+    P.mst_spls_adj = MST_adj_matrix;
+    save(new_skel_filepath, 'P');
 
     %% compute the edge weights from each MST node to the root point
     % main trunk end point is the one with the maximum path density_weight
@@ -232,20 +229,15 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     main_trunk_pts = sortrows(main_trunk_pts, 3); % sort by height
     [~, main_trunk_pts_idx] = ismember(main_trunk_pts, P.spls, 'row');
 
-    figure('Name', 'Coarse main trunk')
-    pcshow(P.spls, 'markersize', 80); hold on
-    plot3(root_point_max_MST(1), root_point_max_MST(2), root_point_max_MST(3), 'r.', 'markersize', 20);
-    plot3(main_trunk_pts(:, 1), main_trunk_pts(:, 2), main_trunk_pts(:, 3), '.r', 'markersize', 15);
-    plot3(main_trunk_endpoint(1), main_trunk_endpoint(2), main_trunk_endpoint(3), 'b.', 'markersize', 20);
-    axis equal;
+    P.coarse_main_trunk_pts = main_trunk_pts;
+    P.coarse_main_trunk_pts_index = main_trunk_pts_idx;
+    save(new_skel_filepath, 'P');
 
-    if SAVE_FIG
-        filename = fullfile(output_folder, 'coarse_main_trunk');
-        saveas(gcf, filename);
-        axis off;
-        % view(0, -5);
-        print('-painters', '-dpdf', '-fillpage', '-r300', filename);
-    end
+    figure('Name', 'Coarse main trunk')
+    pcshow(pt, 'markersize', 20); hold on
+    set(gcf, 'color', 'white'); set(gca, 'color', 'white', 'XColor', 'black', 'YColor', 'black', 'ZColor', 'black');
+    plot3(main_trunk_pts(:, 1), main_trunk_pts(:, 2), main_trunk_pts(:, 3), '.r', 'markersize', 30);
+    xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
 
     disp(['distance threshold lambda1: ' num2str(distance_th)]);
     disp(['entire graph refine mode: ' mode]);
@@ -326,12 +318,6 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     scatter(fitting_pts(outliers_idx, 1), fitting_pts(outliers_idx, 2), '.', 'r');
     draw_ellipse(radius_x, radius_y, theta, xc, yc, 'k')
 
-    if SAVE_FIG
-        filename = fullfile(output_folder, 'diameter_ellipse_fitting');
-        saveas(gcf, filename);
-        print('-painters', '-dpdf', '-fillpage', '-r300', filename);
-    end
-
     figure('Name', 'Ellipse from RANSAC')
     subplot(1, 2, 1)
     scatter(fitting_pts(inliers_idx, 1), fitting_pts(inliers_idx, 2), '.', 'r'); hold on
@@ -343,14 +329,14 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     draw_ellipse(radius_x, radius_y, theta, xc, yc, 'k')
     title(['Radius: x-axis ', num2str(radius_x * 1e3, '%.1f'), ' y-axis: ', num2str(radius_y * 1e3, '%.1f'), ' avg: ', num2str(trunk_radius * 1e3, '%.1f'), ' mm'], 'color', [1, 0, 0]);
 
-    if SAVE_FIG
-        filename = fullfile(output_folder, 'diameter_ellipse_fitting');
-        saveas(gcf, filename);
-    end
-
     disp(['ransac trunk diameter min sample: ' num2str(min_samples)]);
     disp(['ransac trunk diameter threshold: ' num2str(residual_threshold)]);
     disp(['ransac trunk diameter max trials: ' num2str(max_trials)]);
+
+    P.trunk_diameter_pts = fitting_pts(inliers_idx, :);
+    P.trunk_diameter_ellipse = ellipse;
+    P.trunk_radius = trunk_radius;
+    save(new_skel_filepath, 'P');
 
     if TRUNK_REFINEMENT
         %%---------------------------------------------------%%
@@ -368,7 +354,6 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
         P.trunk_cpc_optimized_radius = trunk_cpc_optimized_radius;
         P.trunk_cpc_optimized_confidence = trunk_cpc_optimized_confidence;
         P.trunk_pc = trunk_pc;
-        P.trunk_radius = trunk_radius;
         save(new_skel_filepath, 'P');
 
         disp(['xy radius: ' num2str(trunk_refinement_options.xy_radius)]);
@@ -410,18 +395,20 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     P.trunk_internode_distance_ratio = ratio_distance_list;
 
     figure('Name', 'Refined main trunk')
-    subplot(1, 2, 1)
-    pcshow(P.spls, 'markersize', 50); hold on
-    plot3(root_point_max_MST(1), root_point_max_MST(2), root_point_max_MST(3), 'r.', 'markersize', 20);
-    plot3(refined_main_trunk_pts(:, 1), refined_main_trunk_pts(:, 2), refined_main_trunk_pts(:, 3), '.r', 'markersize', 15);
-    title(['Height: ', num2str(P.main_trunk_height * 100, '%.0f'), ' cm'], 'color', [1, 0, 0]);
-    axis equal;
+    pcshow(pt, 'markersize', 20); hold on
+    set(gcf, 'color', 'white'); set(gca, 'color', 'white', 'XColor', 'black', 'YColor', 'black', 'ZColor', 'black');
+    plot3(refined_main_trunk_pts(:, 1), refined_main_trunk_pts(:, 2), refined_main_trunk_pts(:, 3), '.r', 'markersize', 30);
+    xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
 
-    subplot(1, 2, 2)
-    pcshow(P.spls, 'markersize', 50); hold on
-    plot3(rest_pts(:, 1), rest_pts(:, 2), rest_pts(:, 3), '.r', 'markersize', 15);
-    title(['Length: ', num2str(P.main_trunk_length * 100, '%.0f'), ' cm'], 'color', [1, 0, 0]);
-    axis equal;
+    figure('Name', 'Tree architecture trait')
+    pcshow(pt, 'markersize', 20); hold on
+    set(gcf, 'color', 'white'); set(gca, 'color', 'white', 'XColor', 'black', 'YColor', 'black', 'ZColor', 'black');
+    plot3(refined_main_trunk_pts(:, 1), refined_main_trunk_pts(:, 2), refined_main_trunk_pts(:, 3), '.r', 'markersize', 15);
+    plot3(rest_pts(:, 1), rest_pts(:, 2), rest_pts(:, 3), '.b', 'markersize', 15);
+    title(['Height: ', num2str(P.main_trunk_height * 100, '%.0f'), ' cm'], ...
+            ['Length: ', num2str(P.main_trunk_length * 100, '%.0f'), ' cm'], ...
+            'color', [1, 0, 0]);
+    xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
 
     if SAVE_FIG
         filename = fullfile(output_folder, 'trunk_branch');
@@ -962,7 +949,9 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     Link = linkprop([ax1, ax2], {'CameraUpVector', 'CameraPosition', 'CameraTarget', 'XLim', 'YLim', 'ZLim'});
     setappdata(gcf, 'StoreTheLink', Link);
 
-    saveas(gcf, fullfile(output_folder, tree_id));
+    if SAVE_FIG
+        saveas(gcf, fullfile(output_folder, tree_id));
+    end
 
     if BRANCH_REFINEMENT
         %%-----------------------------------------------------%%
