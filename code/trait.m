@@ -7,7 +7,7 @@ function trait(tree_id, skel_folder, exp_id, excel_filename, options)
     TO_FUSION = options.TO_FUSION;
 
     skel_filename_format = '_contract_*_skeleton.mat';
-    skel_filename = search_skeleton_file(tree_id, skel_folder, skel_filename_format);
+    skel_filename = search_skeleton_file(tree_id, fullfile(skel_folder, exp_id), skel_filename_format);
     output_folder = fullfile(skel_folder, '..', 'characterization', exp_id);
     cad_save_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\Fusion\';
 
@@ -44,19 +44,20 @@ function trait(tree_id, skel_folder, exp_id, excel_filename, options)
     branch_internode_ratio = [];
     branch_angle_list = [];
     branch_diameter_list = [];
+    branch_pts_cell = {};
 
     for i = 1:branch_counter
         primary_branch_pts_size = P.primary_center_size(i);
         index = start + 1:start + primary_branch_pts_size;
         primary_branch_pts = P.primary_branch_center(index, :);
         primary_branch_pts_radius = P.primary_branch_radius(index);
-        primary_branch_pts_radius(primary_branch_pts_radius>P.trunk_radius/2) = NaN;
+        primary_branch_pts_radius(primary_branch_pts_radius > P.trunk_radius / 2) = NaN;
 
         % find the internode
         [sliced_main_trunk_pts, row, col] = find_internode(double(primary_branch_pts), double(trunk_skeleton_pts), 0.2);
         trunk_internode = sliced_main_trunk_pts(row, :);
         branch_internode = primary_branch_pts(col, :);
-        
+
         [~, index] = ismember(trunk_internode, trunk_skeleton_pts, 'row');
         ratio_distance = trunk_internode_ratio(index);
         trunk_radius = P.trunk_cpc_optimized_radius(index);
@@ -74,9 +75,11 @@ function trait(tree_id, skel_folder, exp_id, excel_filename, options)
         % internode
         min_samples = 3; residual_threshold = 0.005; max_trials = 1e3;
         [v1, inliers, ~] = ransac_py(sliced_main_trunk_pts, '3D_Line', min_samples, residual_threshold, max_trials);
+
         if v1(end) < 0
             v1(end) = -v1(end);
         end
+
         sliced_main_trunk_pts_inlier = sliced_main_trunk_pts(inliers == 1, :);
         sliced_main_trunk_pts_outlier = sliced_main_trunk_pts(inliers ~= 1, :);
 
@@ -86,6 +89,7 @@ function trait(tree_id, skel_folder, exp_id, excel_filename, options)
         % radius
         M = 4; % #skeleton points used in radius
         tmp_radius = primary_spline_pts_radius;
+
         if length(tmp_radius) < M
             index = 1:length(tmp_radius);
         else
@@ -98,6 +102,7 @@ function trait(tree_id, skel_folder, exp_id, excel_filename, options)
             branch_internode_ratio = [branch_internode_ratio, ratio_distance];
             branch_angle_list = [branch_angle_list, vertical_angle];
             branch_diameter_list = [branch_diameter_list, radius];
+            branch_pts_cell{i} = primary_branch_pts;
         end
 
         if SHOW_BRANCH
@@ -154,6 +159,7 @@ function trait(tree_id, skel_folder, exp_id, excel_filename, options)
         P.branch_internode_ratio = branch_internode_ratio;
         P.branch_diameter = branch_diameter_list;
         P.branch_angle = branch_angle_list;
+        P.branch_pts_list = branch_pts_cell;
         save(fullfile(cad_save_folder, skel_filename), 'P');
     end
 
@@ -166,4 +172,5 @@ function trait(tree_id, skel_folder, exp_id, excel_filename, options)
     if CLEAR
         clc; clear; close all;
     end
+
 end
