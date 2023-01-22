@@ -8,26 +8,34 @@ path('skeleton', path);
 options.bin_size = 5;
 options.num_iteration = 2;
 options.subsample_num = 50000;
-options.subsample_mode = 1; % Hilbert Curve
+options.subsample_mode = 3; % 1-Hilbert Curve, 2-Random, 3-Grid
+options.gridStep = 0.0048;
 options.USING_POINT_RING = GS.USING_POINT_RING;
 
 extension = '.ply';
 data_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data'; % folder storing original point cloud
 skel_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\skeleton'; % folder storing extracted skeleton
+exp_id = 'grid_downsample';
 
 files = dir([data_folder '\' '*' extension]);
 
-for i = 1
+for i = 9
     filename = files(i).name;
     filepath = files(i).folder;
-    skeletonization(filepath, skel_folder, filename, options);
+    skeletonization(filepath, skel_folder, exp_id, filename, options);
 end
 
-function [] = skeletonization(data_folder, skel_folder, filename_, options)
+function [] = skeletonization(data_folder, skel_folder, exp_id, filename_, options)
 
     close all;
-    
-    P.filename = [skel_folder '/' filename_]; % which file we should run on
+
+    save_folder = fullfile(skel_folder, exp_id);
+
+    if ~exist(save_folder, 'dir')
+        mkdir(save_folder)
+    end
+
+    P.filename = fullfile(save_folder, filename_); % which file we should run on
 
     %% Step 1: read file (point cloud), and subsample point cloud
     tic
@@ -39,14 +47,18 @@ function [] = skeletonization(data_folder, skel_folder, filename_, options)
     fprintf('number of points for original dataset: %d pts\n', original_pt_normalized.Count);
 
     P.subsample_num = options.subsample_num;
-    if options.subsample_mode
+
+    if options.subsample_mode == 1
         P.bin_size = options.bin_size;
         P.num_iteration = options.num_iteration;
         downsample_pt_normalized = Hilbertcurve_method(P.num_iteration, P.bin_size, P.subsample_num, original_pt_normalized);
-    else
+    elseif options.subsample_mode == 2
         ratio = P.subsample_num / original_pt_normalized.Count;
         downsample_pt_normalized = pcdownsample(original_pt_normalized, 'random', ratio); % visualization purpose only!
+    else
+        downsample_pt_normalized = pcdownsample(original_pt_normalized, 'gridAverage', options.gridStep);
     end
+
     fprintf('number of points after downsampling: %d pts\n', downsample_pt_normalized.Count);
 
     P.pts = double(downsample_pt_normalized.Location);
@@ -75,7 +87,7 @@ function [] = skeletonization(data_folder, skel_folder, filename_, options)
     [P.cpts, t, initWL, WC, sl] = contraction_by_mesh_laplacian(P, options);
     fprintf('Contraction:\n');
     toc
-    
+
     %% Step 4: point to curve ?C by cluster ROSA2.0
     tic
     P.sample_radius = P.diameter * 0.006;
@@ -122,7 +134,6 @@ function [] = skeletonization(data_folder, skel_folder, filename_, options)
     set(gcf, 'color', 'white')
     sizep = getoptions(options, 'sizep', 100);
     sizee = getoptions(options, 'sizee', 2);
-    colorp = getoptions(options, 'colorp', [1, .8, .8]);
     colore = getoptions(options, 'colore', [1, .0, .0]);
     scatter3(P.spls(:, 1), P.spls(:, 2), P.spls(:, 3), sizep, '.'); hold on; axis equal; axis off;
     title('skeleton connectivity');
