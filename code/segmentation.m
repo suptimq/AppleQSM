@@ -12,17 +12,16 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     LOAD_PARAS = options.LOAD_PARAS;
     % plot and save figures
     SAVE_FIG = options.SAVE_FIG;
-    SHOW_CLUSTER_SPLIT = options.SHOW_CLUSTER_SPLIT;
 
     skel_filename_format = '_contract_*_skeleton.mat';
-    skel_filename = search_skeleton_file(tree_id, skel_folder, skel_filename_format);
+    skel_filename = search_skeleton_file(tree_id, fullfile(skel_folder, exp_id), skel_filename_format);
     paras_filename = [exp_id '_parameters.mat'];
 
     branch_folder = fullfile(data_folder, [tree_id '_branch']);
     files = dir(fullfile(branch_folder, 'Section*.ply'));
 
     output_folder = fullfile(skel_folder, '..', 'segmentation', exp_id);
-    new_skel_folder = fullfile(skel_folder, exp_id);
+    new_skel_folder = fullfile(skel_folder, '..', 'segmentation', exp_id);
     log_filepath = fullfile(output_folder, [tree_id '_log']);
     paras_filepath = fullfile(output_folder, paras_filename);
     paras = struct();
@@ -41,7 +40,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     end
 
     %% load data
-    skel_filepath = fullfile(skel_folder, skel_filename);
+    skel_filepath = fullfile(skel_folder, exp_id, skel_filename);
     new_skel_filepath = fullfile(new_skel_folder, skel_filename);
     load(skel_filepath, 'P'); % P results from skeleton operation
 
@@ -146,13 +145,6 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
         MSTs_length(i) = MST_length;
         highlight(plot_weighted_graph, MST, 'NodeColor', 'g');
         highlight(plot_weighted_graph, findnode(inverse_weighted_graph, root_point_idx), 'NodeColor', 'r', 'MarkerSize', 5);
-    end
-
-    if SAVE_FIG
-        filename = fullfile(output_folder, 'weighted_graph');
-        saveas(gcf, filename);
-        axis off;
-        print('-painters', '-dpdf', '-fillpage', '-r300', filename);
     end
 
     [MST_max, ~] = max(MSTs_length);
@@ -290,20 +282,20 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     %%---------------------------------------------------------%%
     disp('===================Trunk Diameter Estimation===================');
 
-    loc = backproject(root_point_max_MST, P);
-    ori_root_point = P.pts(loc, :);
-    slice_range_z_axis = 0.008; % 8mm
-    fitting_pts_idx = P.pts(:, 3) <= ori_root_point(:, 3) + slice_range_z_axis;
+    slice_range_z_axis = 0.008; % mm
+    fitting_pts_idx = P.pts(:, 3) <= root_point_max_MST(3) + slice_range_z_axis;
     fitting_pts = P.pts(fitting_pts_idx, :);
     min_samples = load_parameters(paras, 'ransac_trunk_diameter_min_sample', 30);
     residual_threshold = load_parameters(paras, 'ransac_trunk_diameter_threshold', 0.005);
     max_trials = load_parameters(paras, 'ransac_trunk_diameter_trials', 100);
 
-    while size(fitting_pts, 1) < min_samples
+    while size(fitting_pts, 1) <= min_samples
         min_samples = min_samples / 2;
+
         if min_samples < 5
             error('Not Enough Points for Trunk Diameter Estimation!');
         end
+
     end
 
     [ellipse, inliers, outliers] = ransac_py(fitting_pts(:, 1:2), 'Ellipse', min_samples, residual_threshold, max_trials);
@@ -329,6 +321,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     draw_ellipse(radius_x, radius_y, theta, xc, yc, 'k')
     title(['Radius: x-axis ', num2str(radius_x * 1e3, '%.1f'), ' y-axis: ', num2str(radius_y * 1e3, '%.1f'), ' avg: ', num2str(trunk_radius * 1e3, '%.1f'), ' mm'], 'color', [1, 0, 0]);
 
+    disp(['root points search range: ', num2str(slice_range_z_axis, '%.4f')]);
     disp(['ransac trunk diameter min sample: ' num2str(min_samples)]);
     disp(['ransac trunk diameter threshold: ' num2str(residual_threshold)]);
     disp(['ransac trunk diameter max trials: ' num2str(max_trials)]);
@@ -406,8 +399,8 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     plot3(refined_main_trunk_pts(:, 1), refined_main_trunk_pts(:, 2), refined_main_trunk_pts(:, 3), '.r', 'markersize', 15);
     plot3(rest_pts(:, 1), rest_pts(:, 2), rest_pts(:, 3), '.b', 'markersize', 15);
     title(['Height: ', num2str(P.main_trunk_height * 100, '%.0f'), ' cm'], ...
-            ['Length: ', num2str(P.main_trunk_length * 100, '%.0f'), ' cm'], ...
-            'color', [1, 0, 0]);
+        ['Length: ', num2str(P.main_trunk_length * 100, '%.0f'), ' cm'], ...
+        'color', [1, 0, 0]);
     xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
 
     if SAVE_FIG
@@ -496,7 +489,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     cluster_pts_cell = {};
     internode_point_distance = [];
     sliced_main_trunk_pts_cell = {};
-    
+
     updated_cluster_pts_cell = {};
     updated_cluster_label = [];
     noise_cluster_pts_list = [];
@@ -527,7 +520,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
         cur_cluster_pts = cluster_pts_cell{i};
         sliced_main_trunk_pts = sliced_main_trunk_pts_cell{i};
         row = internode_index_cell{i}(1); col = internode_index_cell{i}(2);
-        
+
         % sort branch points ascendingly by their distance to trunk
         branch_internode = cur_cluster_pts(col, :);
         d_m = pdist2(double(branch_internode), cur_cluster_pts);
@@ -545,7 +538,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
         min_samples = 3; residual_threshold = 0.005; max_trials = 1e3;
         [sliced_vector, ~, ~] = ransac_py(sliced_main_trunk_pts(tmp_ii, :), '3D_Line', min_samples, residual_threshold, max_trials);
 
-        % use the first three points in case the branch has bifurcation to 
+        % use the first three points in case the branch has bifurcation to
         % compute the distance
         v1 = [cur_cluster_pts(1, :); cur_cluster_pts(2, :)];
         v2 = [cur_cluster_pts(1, :); cur_cluster_pts(3, :)];
@@ -586,9 +579,11 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     ax2 = subplot(1, 2, 2);
     pcshow(original_pt_normalized, 'markersize', 40); hold on
     plot_dbscan_clusters(updated_cluster_pts_list, updated_cluster_label);
+
     if ~isempty(noise_cluster_pts_list)
         plot3(noise_cluster_pts_list(:, 1), noise_cluster_pts_list(:, 2), noise_cluster_pts_list(:, 3), '.r', 'MarkerSize', 15);
     end
+
     xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
     title(['Removed fake clusters: ', num2str(length(unique_updated_cluster_label))], 'color', [1, 0, 0]);
 
@@ -663,7 +658,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
 
         % points are not connected in MST
         if MST_max_length <= 3
-            disp(['===================SKIP BRNACH ' num2str(i) 'Due to MST <= 3 ', num2str(MST_max_length),  ' ==================='])
+            disp(['===================SKIP BRNACH ' num2str(i) 'Due to MST <= 3 ', num2str(MST_max_length), ' ==================='])
             continue
         end
 
@@ -692,13 +687,6 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
 
         branch_pts_idx{branch_counter} = tmp;
 
-    end
-
-    if SAVE_FIG
-        filename = fullfile(output_folder, 'weighted_graph_wi_trunk');
-        saveas(gcf, filename);
-        axis off;
-        print('-painters', '-dpdf', '-fillpage', '-r300', filename);
     end
 
     figure('Name', 'Branch count visualization')
@@ -772,15 +760,16 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
             overcount_branch_cluster_label = spectralcluster(overcount_branch_pts, num_split_cluster);
             unique_overcount_branch_cluster_label = unique(overcount_branch_cluster_label);
 
-            assert(length(unique_overcount_branch_cluster_label)==length(visited_group), 'Error');
+            assert(length(unique_overcount_branch_cluster_label) == length(visited_group), 'Error');
 
             visited_group_angle = cell(length(visited_group), 1);
             new_cluster_pts = cell(length(unique_overcount_branch_cluster_label), 1);
+
             for j = 1:length(unique_overcount_branch_cluster_label)
 
                 tmp_cluster_label = unique_overcount_branch_cluster_label(j);
                 tmp_index = overcount_branch_cluster_label == tmp_cluster_label;
-                overcount_branch_cluster_pts = overcount_branch_pts(tmp_index, :); 
+                overcount_branch_cluster_pts = overcount_branch_pts(tmp_index, :);
                 new_cluster_pts{j} = overcount_branch_cluster_pts;
 
                 for k = 1:length(visited_group)
@@ -791,12 +780,14 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
                     distance_matrix = pdist2(double(neighbor_cluster_pts), double(overcount_branch_cluster_pts));
                     [d_min, d_tmp_index] = min(distance_matrix(:));
                     [row, col] = ind2sub(size(distance_matrix), d_tmp_index);
+
                     if row == 1
                         tmp_internodes = internode_pair{group_id};
                         tmp_pts1 = tmp_internodes(1, :);
                     else
-                         tmp_pts1 = neighbor_cluster_pts(row-1, :);
+                        tmp_pts1 = neighbor_cluster_pts(row - 1, :);
                     end
+
                     tmp_pts2 = neighbor_cluster_pts(row, :);
                     tmp_pts3 = overcount_branch_cluster_pts(col, :);
                     critical_pts = [tmp_pts1; tmp_pts2; tmp_pts3];
@@ -811,12 +802,15 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
             % for each branch root cluster, find the over-seg cluster with
             % minimum angle difference
             visited2 = zeros(length(unique_overcount_branch_cluster_label), 1);
+
             for j = 1:length(visited_group)
                 angles = visited_group_angle{j};
                 [~, tmp_index] = mink(angles, length(unique_overcount_branch_cluster_label));
+
                 while visited2(tmp_index(1))
                     tmp_index(1) = [];
                 end
+
                 visited2(tmp_index(1)) = 1;
                 overcount_branch_cluster_pts = new_cluster_pts{tmp_index(1)};
                 [~, ii] = ismember(overcount_branch_cluster_pts, P.spls, 'row');
@@ -911,6 +905,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
 
     ax2 = subplot(1, 2, 2);
     pcshow(pt, 'MarkerSize', 30); hold on
+
     %% visualization of field measurement
     for i = 1:length(files)
         filename = files(i).name;
@@ -1086,7 +1081,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
         pcshow(P.branch_pc, 'Markersize', 30); hold on
         plot_by_weight(valid_centers, valid_radii / trunk_radius);
         xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); axis equal; grid on;
-    
+
         Link = linkprop([ax1, ax2], {'CameraUpVector', 'CameraPosition', 'CameraTarget', 'XLim', 'YLim', 'ZLim'});
         setappdata(gcf, 'StoreTheLink', Link);
     end
