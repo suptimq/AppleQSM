@@ -683,7 +683,8 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     %%---------------------------------------------------------%%
     overcount_branch_pts_index = find(visited > 1);
     overcount_branch_pts_cluster = visited_id(overcount_branch_pts_index);
-    overcount_branch_pts_group = unique(cell2mat(overcount_branch_pts_cluster), 'rows');
+    equal_length_overcount_branch_pts_cluster = safe_cell2mat(overcount_branch_pts_cluster')';
+    overcount_branch_pts_group = unique(equal_length_overcount_branch_pts_cluster, 'rows');
     overcount_branch_pts = P.spls(overcount_branch_pts_index, :);
     [~, overcount_branch_pts_index2] = ismember(overcount_branch_pts, rest_pts, 'row');
     overcount_adj_matrix = adj_matrix(overcount_branch_pts_index2, overcount_branch_pts_index2);
@@ -726,13 +727,13 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
 
     for m = 1:size(overcount_branch_pts_group, 1)
         visited_group = overcount_branch_pts_group(m, :);
-        tmp_index = cellfun(@(x)all(x == visited_group), overcount_branch_pts_cluster);
-        tmp_pts_index = overcount_branch_pts_index(tmp_index);
+        [~, tmp_index] = ismember(equal_length_overcount_branch_pts_cluster, visited_group, 'row');
+        tmp_pts_index = overcount_branch_pts_index(find(tmp_index));
         overcount_branch_pts = P.spls(tmp_pts_index, :);
 
         % discard small clusters
         if size(overcount_branch_pts, 1) > noise_threshold
-
+            visited_group = visited_group(visited_group~=0);
             num_split_cluster = length(visited_group);
             overcount_branch_cluster_label = spectralcluster(overcount_branch_pts, num_split_cluster);
             unique_overcount_branch_cluster_label = unique(overcount_branch_cluster_label);
@@ -819,8 +820,11 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     %%-------------------Primary Branch Identification-------------------%%
     %% same to main trunk detection
     %% find the point providing the maximum path weight
+    %% there might be chances that a branch doesn't have
+    %% primary branch
     %%-------------------------------------------------------------------%%
     primary_branch_pts_idx = {}; % index in terms of P.spls
+    primary_branch_counter = 0;
 
     for j = 1:branch_counter
         cur_branch_pts_idx = branch_pts_idx{j};
@@ -857,11 +861,17 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
             shortest_path_distance(k) = distance;
         end
 
-        [~, max_weight_idx] = max(shortest_path_distance);
-        shortest_path_node = shortest_path_nodes{max_weight_idx}; % The node was already sorted based on its correponding distance to the source node
-        [~, tmp] = ismember(rest_pts(shortest_path_node, :), P.spls, 'row');
-        primary_branch_pts_idx{j} = tmp;
+        if sum(shortest_path_distance) ~= 0
+            primary_branch_counter = primary_branch_counter + 1;
+            [~, max_weight_idx] = max(shortest_path_distance);
+            shortest_path_node = shortest_path_nodes{max_weight_idx}; % The node was already sorted based on its correponding distance to the source node
+            [~, tmp] = ismember(rest_pts(shortest_path_node, :), P.spls, 'row');
+            primary_branch_pts_idx{primary_branch_counter} = tmp;
+        end
     end
+
+    P.primary_branch_counter = primary_branch_counter;
+    save(new_skel_filepath, 'P');
 
     figure('Name', 'Primary branch identification')
     ax1 = subplot(1, 2, 1);
@@ -869,7 +879,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
 
     colors = {'red', 'blue', 'yellow', 'green', 'cyan', 'magenta', 'white'};
 
-    for i = 1:branch_counter
+    for i = 1:primary_branch_counter
         cur_branch_pts_idx = primary_branch_pts_idx{i};
         cur_branch_pts = P.spls(cur_branch_pts_idx, :);
         tmp_pts = cur_branch_pts(1, :);
