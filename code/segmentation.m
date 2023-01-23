@@ -55,17 +55,6 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     ratio = desired_pt / original_pt_normalized.Count;
     pt = pcdownsample(original_pt_normalized, 'random', ratio); % visualization purpose only!
 
-    if SAVE_FIG
-        filename = fullfile(output_folder, 'original_point_cloud');
-        figure('name', 'Original point cloud')
-        pcshow(pt, 'markersize', 30);
-        hold on
-        axis equal;
-        axis off;
-        view(0, -5);
-        print('-painters', '-dpdf', '-fillpage', '-r300', filename);
-    end
-
     %% show skeleton connectivity
     figure('Name', 'Skeleton connectivity');
     set(gcf, 'color', 'white')
@@ -74,28 +63,12 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     set(gcf, 'Renderer', 'OpenGL');
     plot_connectivity(P.spls, P.spls_adj, sizee, colore);
 
-    if SAVE_FIG
-        filename = fullfile(output_folder, 'skeleton_connectivity');
-        % saveas(gcf, filename);
-        axis off;
-        view(0, -5);
-        print('-painters', '-dpdf', '-fillpage', '-r300', filename);
-    end
-
     %% show skeleton and original point cloud
     figure('Name', 'Original point cloud and its skeleton');
     pcshow(pt, 'markersize', 30); hold on;
     set(gcf, 'color', 'white'); set(gca, 'color', 'white');
     plot3(P.spls(:, 1), P.spls(:, 2), P.spls(:, 3), '.r', 'markersize', 20);
     axis equal;
-
-    if SAVE_FIG
-        filename = fullfile(output_folder, 'skeleton_overlaid');
-        saveas(gcf, filename);
-        axis off;
-        view(0, -5);
-        print('-painters', '-dpdf', '-fillpage', '-r300', filename);
-    end
 
     %%---------------------------------------------------------%%
     %%-------------------Trunk Identification-------------------%%
@@ -282,7 +255,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     %%---------------------------------------------------------%%
     disp('===================Trunk Diameter Estimation===================');
 
-    slice_range_z_axis = 0.008; % mm
+    slice_range_z_axis = 0.015; % mm
     fitting_pts_idx = P.pts(:, 3) <= root_point_max_MST(3) + slice_range_z_axis;
     fitting_pts = P.pts(fitting_pts_idx, :);
     min_samples = load_parameters(paras, 'ransac_trunk_diameter_min_sample', 30);
@@ -379,13 +352,14 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     distance_list = [];
 
     for i = 1:size(refined_main_trunk_pts, 1) - 1
-        distance_ = pdist([refined_main_trunk_pts(i); refined_main_trunk_pts(i + 1)]);
+        distance_ = pdist([refined_main_trunk_pts(i, :); refined_main_trunk_pts(i + 1, :)]);
         distance_list = [distance_list, distance_];
     end
 
     ratio_distance_list = [0, cumsum(distance_list) / sum(distance_list)];
     P.main_trunk_length = sum(distance_list);
     P.trunk_internode_distance_ratio = ratio_distance_list;
+    save(new_skel_filepath, 'P');
 
     figure('Name', 'Refined main trunk')
     pcshow(pt, 'markersize', 20); hold on
@@ -688,6 +662,9 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
         branch_pts_idx{branch_counter} = tmp;
 
     end
+
+    P.branch_counter = branch_counter;
+    save(new_skel_filepath, 'P');
 
     figure('Name', 'Branch count visualization')
     ax1 = subplot(1, 2, 1);
