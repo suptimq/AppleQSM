@@ -83,11 +83,7 @@ function [ori_cpc_optimized_center, ori_cpc_optimized_radius, ori_cpc_optimized_
 
                     median_inlier_radius = median(ori_cpc_optimized_radius);
 
-                    if size(ori_cpc_optimized_center, 1) > 1
-                        ori_cpc_optimized_center_median = median(ori_cpc_optimized_center);
-                    else
-                        ori_cpc_optimized_center_median = ori_cpc_optimized_center;
-                    end
+                    ori_cpc_optimized_center_median = median(ori_cpc_optimized_center, 1);
 
                     figure('Name', 'Branch pts')
                     pcshow(neighboring_pc, 'MarkerSize', 30); hold on
@@ -103,7 +99,7 @@ function [ori_cpc_optimized_center, ori_cpc_optimized_radius, ori_cpc_optimized_
                 end
 
             else
-                ori_cpc_optimized_center = median(branch_surface_pts);
+                ori_cpc_optimized_center = median(branch_surface_pts, 1);
                 ori_cpc_optimized_radius = NaN;
                 ori_cpc_optimized_confidence = NaN;
             end

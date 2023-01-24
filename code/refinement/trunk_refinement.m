@@ -72,9 +72,9 @@ function [cpc_optimzed_center, cpc_optimized_radius, cpc_optimized_confidence, t
                 inlier_spls = tmp_center(segment_inliers == 1, :);
                 inlier_radius = tmp_radius(segment_inliers == 1, :);
                 inlier_confidence = tmp_confidence(segment_inliers == 1, :);
-                median_inlier_spls = median(inlier_spls);
-                median_inlier_radius = median(inlier_radius);
-                median_inlier_confidence = median(inlier_confidence);
+                median_inlier_spls = median(inlier_spls, 1);
+                median_inlier_radius = median(inlier_radius, 1);
+                median_inlier_confidence = median(inlier_confidence, 1);
     
                 optimized_spls = [optimized_spls; median_inlier_spls];
                 optimized_radius = [optimized_radius; median_inlier_radius];

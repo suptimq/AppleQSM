@@ -22,11 +22,7 @@ function CPC = branch_refinement(P, kdtree, branch_pts_idx, options)
 
         [cpc_optimized_center, cpc_optimized_radius, cpc_optimized_confidence, cpc_optimized_center_outlier, branch_seg_pc] = cpc_refinement(P, branch_pts_idx(i), kdtree, sphere_radius, maximum_length);
 
-        if size(cpc_optimized_center, 1) > 1
-            cpc_optimized_center_median = median(cpc_optimized_center);
-        else
-            cpc_optimized_center_median = cpc_optimized_center;
-        end
+        cpc_optimized_center_median = median(cpc_optimized_center, 1);
 
         cpc_optimized_radius_median = median(cpc_optimized_radius, 'omitnan');
         cpc_optimized_confidence_median = median(cpc_optimized_confidence, 'omitnan');

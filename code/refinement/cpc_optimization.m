@@ -17,7 +17,7 @@ function center = cpc_optimization(surface_pts, initial_skeleton_pts)
         distance = pdist2(surface_pts, center);
         variance = var(distance, 1);
         mean_ = mean(distance);
-        lambda_s  = mean_ / variance * 64;
+        lambda_s  = mean_ / (variance + 1e-6) * 64;
         f = @(vs)parameterfun(vs, surface_pts, lambda_s);
         [center, fval] = fminunc(f, center, options);                                   % optimization
         if abs(fval-prev_fval) < 1e-9                                                               % check break condition
