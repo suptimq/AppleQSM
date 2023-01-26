@@ -246,6 +246,9 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     rest_pts_idx = setdiff(1:size(P.spls, 1), refined_main_trunk_pts_idx);
     rest_pts = P.spls(rest_pts_idx, :);
 
+    P.all_branch_pts = rest_pts;
+    save(new_skel_filepath, 'P');
+
     disp(['main trunk refine range: ' num2str(main_trunk_refine_range)]);
 
     %%---------------------------------------------------------%%
@@ -378,7 +381,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
 
     if SAVE_FIG
-        filename = fullfile(output_folder, 'trunk_branch');
+        filename = fullfile(output_folder, [tree_id, '_tree_trait']);
         saveas(gcf, filename);
     end
 
@@ -408,9 +411,10 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     disp(['dbscan eps: ' num2str(eps)]);
     disp(['dbscan min samples: ' num2str(min_samples)]);
 
+    PC_COLOR = [102, 153, 204] / 255;
     figure('Name', 'Results from Clustering')
     ax1 = subplot(1, 3, 1);
-    plot3(P.spls(:, 1), P.spls(:, 2), P.spls(:, 3), '.g', 'Markersize', 20); hold on
+    plot3(P.spls(:, 1), P.spls(:, 2), P.spls(:, 3), '.', 'Color', PC_COLOR, 'Markersize', 20); hold on
     plot3(refined_main_trunk_pts(:, 1), refined_main_trunk_pts(:, 2), refined_main_trunk_pts(:, 3), '.r', 'markersize', 30);
     plot3(crotch_pts(:, 1), crotch_pts(:, 2), crotch_pts(:, 3), '.b', 'markersize', 30);
     title('Crotch points w/ raw trunk skeleton points', 'color', [1, 0, 0]);
@@ -418,14 +422,14 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
 
     ax2 = subplot(1, 3, 2);
     plot3(refined_main_trunk_pts(:, 1), refined_main_trunk_pts(:, 2), refined_main_trunk_pts(:, 3), '.r', 'markersize', 30); hold on
-    plot3(rest_pts(:, 1), rest_pts(:, 2), rest_pts(:, 3), '.g', 'Markersize', 30);
-    plot3(noise_pts(:, 1), noise_pts(:, 2), noise_pts(:, 3), '.yellow', 'markersize', 30);
+    plot3(rest_pts(:, 1), rest_pts(:, 2), rest_pts(:, 3), '.', 'Color', PC_COLOR, 'Markersize', 30);
+    plot3(noise_pts(:, 1), noise_pts(:, 2), noise_pts(:, 3), '.r', 'markersize', 30);
     plot3(crotch_pts(:, 1), crotch_pts(:, 2), crotch_pts(:, 3), '.b', 'markersize', 30);
     title('Crotch points w/ uniform trunk skeleton points', 'color', [1, 0, 0]);
     xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
 
     ax3 = subplot(1, 3, 3);
-    plot3(P.spls(:, 1), P.spls(:, 2), P.spls(:, 3), '.g', 'Markersize', 20); hold on
+    plot3(P.spls(:, 1), P.spls(:, 2), P.spls(:, 3), '.', 'Color', PC_COLOR, 'Markersize', 20); hold on
     plot3(refined_main_trunk_pts(:, 1), refined_main_trunk_pts(:, 2), refined_main_trunk_pts(:, 3), '.black', 'markersize', 30);
     plot_dbscan_clusters(crotch_pts, cluster_label);
     title(['Clusters: ', num2str(length(unique_cluster_label))], 'color', [1, 0, 0]);
@@ -593,6 +597,8 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     branch_counter = 0;
     branch_pts_idx = {}; % index in terms of P.spls
     valid_cluster_pts_cell = {}; % valid branch root clusters
+    valid_cluster_pts_list = [];
+    valid_cluster_pts_label = [];
     internode_pair = {}; % valid trunk and branch internodes
     visited = zeros(size(P.spls, 1), 1); % if points have been already assigned to one of primary branches
     visited_id = cell(size(P.spls, 1), 1);
@@ -640,6 +646,8 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
 
         branch_counter = branch_counter + 1;
         valid_cluster_pts_cell{branch_counter} = cur_cluster_pts;
+        valid_cluster_pts_list = [valid_cluster_pts_list; cur_cluster_pts];
+        valid_cluster_pts_label = [valid_cluster_pts_label; ones(size(cur_cluster_pts, 1), 1) * branch_counter];
         internode_pair{branch_counter} = [sliced_main_trunk_pts(row, :); cur_cluster_pts(col, :)];
 
         [~, MST_max_idx] = max(MSTs_length);
@@ -663,6 +671,8 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
 
     end
 
+    P.branch_root_pts = valid_cluster_pts_list;
+    P.branch_root_label = valid_cluster_pts_label;
     P.branch_counter = branch_counter;
     save(new_skel_filepath, 'P');
 
@@ -877,8 +887,6 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     ax1 = subplot(1, 2, 1);
     pcshow(pt, 'MarkerSize', 30); hold on
 
-    colors = {'red', 'blue', 'yellow', 'green', 'cyan', 'magenta', 'white'};
-
     for i = 1:primary_branch_counter
         cur_branch_pts_idx = primary_branch_pts_idx{i};
         cur_branch_pts = P.spls(cur_branch_pts_idx, :);
@@ -1019,6 +1027,8 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
                 side_radius = [side_radius; side_branch_cpc_optimized_radius];
                 side_confidence = [side_confidence; side_branch_cpc_optimized_confidence];
                 side_center_size = [side_center_size; size(side_branch_cpc_optimized_center, 1)];
+            else
+                side_center_size = [side_center_size; 0];
             end
 
         end
