@@ -15,15 +15,15 @@ function plot_dbscan_clusters(X, IDX)
 
     k = double(max(IDX));
 
-    Colors = {'yellow', 'blue', 'cyan', 'magenta'};
-    Styles = {'*', '.', 'v'};
+    Colors = {'red', 'blue', 'yellow', 'green', 'cyan', 'magenta'};
+    Styles = {'.'};
 
     for i = 1:k
         Xi = X(IDX == i, :);
 
         if i ~= -1
             Style = Styles{rem(i, length(Styles)) + 1};
-            MarkerSize = 10;
+            MarkerSize = 30;
             Color = Colors{rem(i, length(Colors)) + 1};
             % Legends{end + 1} = ['c #' num2str(i + 1)];
             % Legends{end + 1} = ['Node #' num2str(i + 1)];
