@@ -6,20 +6,22 @@ path('subsample', path);
 path('skeleton', path);
 
 options.bin_size = 5;
-options.num_iteration = 2;
+options.num_iteration = 7;
 options.subsample_num = 50000;
-options.subsample_mode = 3; % 1-Hilbert Curve, 2-Random, 3-Grid
+options.subsample_mode = 1; % 1-Hilbert Curve, 2-Random, 3-Grid
+options.density_mode = 2; % 1-Hilbert Curve, 2-KNN
 options.gridStep = 0.0048;
 options.USING_POINT_RING = GS.USING_POINT_RING;
 
 extension = '.ply';
-data_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data'; % folder storing original point cloud
-skel_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\skeleton'; % folder storing extracted skeleton
-exp_id = 'grid_downsample';
+data_folder = 'D:\Data\Apple_Orchard\Lailiang_Cheng\LLC_04022022\Xiangtao_Segment\row 15\processed'; % folder storing original point cloud
+skel_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\row15\skeleton'; % folder storing extracted skeleton
+exp_id = 'hc_downsample_iter_7';
 
 files = dir([data_folder '\' '*' extension]);
+files = natsortfiles(files);
 
-for i = 9
+for i = 1:9 
     filename = files(i).name;
     filepath = files(i).folder;
     skeletonization(filepath, skel_folder, exp_id, filename, options);
@@ -64,6 +66,13 @@ function [] = skeletonization(data_folder, skel_folder, exp_id, filename_, optio
     P.pts = double(downsample_pt_normalized.Location);
     P.npts = size(P.pts, 1);
     [P.bbox, P.diameter] = GS.compute_bbox(P.pts);
+
+    if ~isempty(downsample_pt_normalized.Intensity) && (options.density_mode == 1)
+        P.density = downsample_pt_normalized.Intensity;
+    else
+        P.density = compute_density(P.npts, P.pts);
+    end
+
     fprintf('read point set:\n');
     toc
 
@@ -73,7 +82,6 @@ function [] = skeletonization(data_folder, skel_folder, exp_id, filename_, optio
 
     if options.USING_POINT_RING
         P.rings = compute_point_point_ring(P.pts, P.k_knn, []);
-        P.density = compute_density(P.npts, P.pts);
     else
         P.frings = compute_vertex_face_ring(P.faces);
         P.rings = compute_vertex_ring(P.faces, P.frings);
@@ -138,12 +146,11 @@ function [] = skeletonization(data_folder, skel_folder, exp_id, filename_, optio
     scatter3(P.spls(:, 1), P.spls(:, 2), P.spls(:, 3), sizep, '.'); hold on; axis equal; axis off;
     title('skeleton connectivity');
     set(gcf, 'Renderer', 'OpenGL');
-    plot_connectivity(P.spls, P.spls_adj, sizee, colore);
-    axis on;
+    plot_connectivity(P.spls, P.spls_adj, sizee, colore); axis on;
     saveas(gcf, [output_folder '/' 'skeleton connectivity']);
 
     %% show weighted skeleton
     figure('Name', 'Weighted skeleton')
-    plot_by_weight(P.spls, P.spls_density)
+    plot_by_weight(P.spls, P.spls_density); axis equal; axis on;
     saveas(gcf, [output_folder '/' 'weighted skeleton']);
 end
