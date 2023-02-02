@@ -8,7 +8,6 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     TRUNK_REFINEMENT = options.TRUNK_REFINEMENT;
     BRANCH_REFINEMENT = options.BRANCH_REFINEMENT;
     % save parameters for each tree
-    SAVE_PARAS = options.SAVE_PARAS;
     LOAD_PARAS = options.LOAD_PARAS;
     % plot and save figures
     SAVE_FIG = options.SAVE_FIG;
@@ -58,7 +57,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     %% show skeleton connectivity
     figure('Name', 'Skeleton connectivity');
     set(gcf, 'color', 'white')
-    sizep = 100; sizee = 1; colorp = [1, .8, .8]; colore = [1, .0, .0];
+    sizep = 100; sizee = 1; colore = [1, .0, .0];
     scatter3(P.spls(:, 1), P.spls(:, 2), P.spls(:, 3), sizep, '.'); hold on; axis equal;
     set(gcf, 'Renderer', 'OpenGL');
     plot_connectivity(P.spls, P.spls_adj, sizee, colore);
@@ -113,7 +112,11 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
 
     for i = 1:size(root_points, 1)
         root_point_idx = root_points_idx(i);
-        [MST, ~] = minspantree(inverse_weighted_graph, 'Type', 'tree', 'Root', findnode(inverse_weighted_graph, root_point_idx));
+        node_id  = findnode(inverse_weighted_graph, root_point_idx);
+        if ~node_id
+            continue
+        end
+        [MST, ~] = minspantree(inverse_weighted_graph, 'Type', 'tree', 'Root', node_id);
         MST_length = size(MST.Edges, 1);
         MSTs_length(i) = MST_length;
         highlight(plot_weighted_graph, MST, 'NodeColor', 'g');
@@ -129,8 +132,6 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
 
     [MST, ~] = minspantree(inverse_weighted_graph, 'Type', 'tree', 'Root', findnode(inverse_weighted_graph, root_point_idx_max_MST));
     MST_nodes = table2array(MST.Edges);
-    MST_nodes_unique = unique(MST_nodes(:, 1:2));
-    MST_pts = P.spls(MST_nodes_unique, :);
 
     %% plot connectivity for MST
     MST_adj_matrix = zeros(length(P.spls), length(P.spls));
@@ -180,17 +181,22 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
         shortest_path_distance(i) = distance;
     end
 
-    density_search_range = load_parameters(paras, 'density_search_range', 0.1);
-    [max_density, ~] = max(shortest_path_distance);
-    endpoint_pts_idx = find(shortest_path_distance >= max_density - density_search_range);
+    maxk_counter = 1;
+    z_threshold = 10;
+    z_difference = ones(z_threshold, 1) * -1;
+    [~, maxk_index] = maxk(shortest_path_distance, size(P.spls, 1));
+    while sum(z_difference < 0) >= z_threshold
+        main_trunk_pts_idx = shortest_path_nodes{maxk_index(maxk_counter)}';
+        main_trunk_pts = P.spls(main_trunk_pts_idx, :);
+        
+        main_trunk_pts_right_shift = main_trunk_pts;
+        main_trunk_pts_right_shift(1, :) = [];
+        main_trunk_pts_right_shift(end+1, :) = [0, 0, 0];
+        z_difference = main_trunk_pts_right_shift(:, 3) - main_trunk_pts(:, 3);
+        maxk_counter = maxk_counter + 1;
+    end
 
-    endpoint_pts = P.spls(endpoint_pts_idx, :);
-    [highest_pts_z, highest_pts_idx] = max(endpoint_pts(:, 3));
-
-    max_density_idx = endpoint_pts_idx(highest_pts_idx);
-    main_trunk_endpoint = P.spls(max_density_idx, :);
-    main_trunk_pts_idx = shortest_path_nodes{max_density_idx}'; % take care of dimension!
-    main_trunk_pts = P.spls(main_trunk_pts_idx, :);
+    main_trunk_endpoint = main_trunk_pts(end, :);
     main_trunk_pts = sortrows(main_trunk_pts, 3); % sort by height
     [~, main_trunk_pts_idx] = ismember(main_trunk_pts, P.spls, 'row');
 
@@ -210,7 +216,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     disp(['root point search range: ' num2str(root_point_search_range)]);
 
     disp(['graph edge coefficient alpha2: ' num2str(coefficient_density_weight)]);
-    disp(['density search range: ' num2str(density_search_range)]);
+    disp(['z threshold: ' num2str(z_threshold)]);
 
     % main trunk refinement (heritage issue)
     disp('===================Trunk Skeleton Refinement (Heritage)===================');
@@ -297,6 +303,11 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     draw_ellipse(radius_x, radius_y, theta, xc, yc, 'k')
     title(['Radius: x-axis ', num2str(radius_x * 1e3, '%.1f'), ' y-axis: ', num2str(radius_y * 1e3, '%.1f'), ' avg: ', num2str(trunk_radius * 1e3, '%.1f'), ' mm'], 'color', [1, 0, 0]);
 
+    if SAVE_FIG
+        filename = fullfile(output_folder, [tree_id, '_tree_diameter']);
+        saveas(gcf, filename);
+    end
+
     disp(['root points search range: ', num2str(slice_range_z_axis, '%.4f')]);
     disp(['ransac trunk diameter min sample: ' num2str(min_samples)]);
     disp(['ransac trunk diameter threshold: ' num2str(residual_threshold)]);
@@ -381,7 +392,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
 
     if SAVE_FIG
-        filename = fullfile(output_folder, [tree_id, '_tree_trait']);
+        filename = fullfile(output_folder, [tree_id, '_tree_trunk']);
         saveas(gcf, filename);
     end
 
@@ -482,7 +493,13 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
         cur_cluster_pts = crotch_pts(cur_cluster_pts_idx, :);
 
         cluster_pts_cell{i} = cur_cluster_pts;
-        [sliced_main_trunk_pts, row, col] = find_internode(double(cur_cluster_pts), refined_main_trunk_pts, 0.1, false);
+        start = true;
+        z_search_range = 0.1;
+        while start || size(sliced_main_trunk_pts, 1) <= 3
+            [sliced_main_trunk_pts, row, col] = find_internode(double(cur_cluster_pts), refined_main_trunk_pts, z_search_range, false);
+            z_search_range = z_search_range + 0.1;
+            start = false;
+        end
         sliced_main_trunk_pts_cell{i} = sliced_main_trunk_pts;
         internode_index_cell{i} = [row, col];
         internode_point_distance = [internode_point_distance; pdist2(double(sliced_main_trunk_pts(row, :)), double(cur_cluster_pts(col, :)))];
@@ -605,6 +622,10 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     MST_list = {};
     MST_node_list = {};
 
+    if isempty(updated_cluster_pts_list)
+        error('===================Characterization Failure===================')
+    end
+
     [~, updated_cluster_pts_index_in_rest_pts] = ismember(updated_cluster_pts_list, rest_pts, 'row');
 
     for i = 1:length(unique_updated_cluster_label)
@@ -629,7 +650,11 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
         % go over each point in the cluster
         for j = 1:length(cur_cluster_pts_idx)
             cur_pts_in_MST_idx = cur_cluster_pts_idx(j); % index in rest_pts
-            [MST, ~] = minspantree(rest_weighted_graph, 'Type', 'tree', 'Root', findnode(rest_weighted_graph, cur_pts_in_MST_idx));
+            node_id  = findnode(rest_weighted_graph, cur_pts_in_MST_idx);
+            if ~node_id
+                continue
+            end
+            [MST, ~] = minspantree(rest_weighted_graph, 'Type', 'tree', 'Root', node_id);
             MST_length = size(MST.Edges, 1);
             MSTs_length(j) = MST_length;
         end
@@ -940,7 +965,8 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     setappdata(gcf, 'StoreTheLink', Link);
 
     if SAVE_FIG
-        saveas(gcf, fullfile(output_folder, tree_id));
+        filename = fullfile(output_folder, [tree_id, '_branch']);
+        saveas(gcf, filename);
     end
 
     if BRANCH_REFINEMENT
