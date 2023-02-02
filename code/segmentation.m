@@ -20,8 +20,9 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     files = dir(fullfile(branch_folder, 'Section*.ply'));
 
     output_folder = fullfile(skel_folder, '..', 'segmentation', exp_id);
+    log_folder = fullfile(output_folder, 'log');
     new_skel_folder = fullfile(skel_folder, '..', 'segmentation', exp_id);
-    log_filepath = fullfile(output_folder, [tree_id '_log']);
+    log_filepath = fullfile(log_folder, [tree_id '_log']);
     paras_filepath = fullfile(output_folder, paras_filename);
     paras = struct();
 
@@ -32,6 +33,10 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     %% create folder to save results
     if ~exist(output_folder, 'dir')
         mkdir(output_folder)
+    end
+
+    if ~exist(log_folder, 'dir')
+        mkdir(log_folder)
     end
 
     if ~exist(new_skel_folder, 'dir')
@@ -79,7 +84,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     %% create a graph with density as weights
     distance_th = load_parameters(paras, 'distance_th_lambda1', 0.1);
     mode = load_parameters(paras, 'entire_graph_refine_mode', 'distance');
-    coefficient_inv_density_weight = load_parameters(paras, 'graph_edge_coefficient_alpha1', 0.6);
+    coefficient_inv_density_weight = load_parameters(paras, 'graph_edge_coefficient_alpha1', 0.4);
     [adj_matrix, adj_idx, density_weight, inv_density_weight, distance_weight] = refine_adj_matrix(P.spls, P.spls_adj, P.spls_density, distance_th, mode);
     % normalize inv_density_weight and distance_weight to [0, 1]
     inv_weight_normalized = normalize(inv_density_weight, 'range');
@@ -264,14 +269,14 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     %%---------------------------------------------------------%%
     disp('===================Trunk Diameter Estimation===================');
 
-    slice_range_z_axis = 0.015; % mm
-    fitting_pts_idx = P.pts(:, 3) <= root_point_max_MST(3) + slice_range_z_axis;
-    fitting_pts = P.pts(fitting_pts_idx, :);
+    slice_range_z_axis = 0.05;
+    trunk_root_pts_index = P.pts(:, 3) <= root_point_max_MST(3) + slice_range_z_axis;
+    trunk_root_pts = P.pts(trunk_root_pts_index, :);
     min_samples = load_parameters(paras, 'ransac_trunk_diameter_min_sample', 30);
     residual_threshold = load_parameters(paras, 'ransac_trunk_diameter_threshold', 0.005);
     max_trials = load_parameters(paras, 'ransac_trunk_diameter_trials', 100);
 
-    while size(fitting_pts, 1) <= min_samples
+    while size(trunk_root_pts, 1) <= min_samples
         min_samples = min_samples / 2;
 
         if min_samples < 5
@@ -280,28 +285,42 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
 
     end
 
-    [ellipse, inliers, outliers] = ransac_py(fitting_pts(:, 1:2), 'Ellipse', min_samples, residual_threshold, max_trials);
+    % clustering
+    noise_label = -1;
+    eps = load_parameters(paras, 'branch_seg_dbscan_eps', P.sample_radius * 2);
+    cluster_label = dbscan(trunk_root_pts, eps, min_samples);
+    noise_pts = trunk_root_pts(cluster_label == noise_label, :);
+    trunk_root_pts = trunk_root_pts(cluster_label ~= noise_label, :);
+    cluster_label = cluster_label(cluster_label ~= noise_label);
+    unique_cluster_label = unique(cluster_label);
+
+    counts = histc(cluster_label(:), unique_cluster_label);
+    [~, max_index] = max(counts);
+    largest_trunk_cluster_pts = trunk_root_pts(cluster_label==max_index, :);
+    small_trunk_cluster_pts = trunk_root_pts(cluster_label~=max_index, :);
+    
+    % ellipse fitting
+    [ellipse, inliers, outliers] = ransac_py(largest_trunk_cluster_pts(:, 1:2), 'Ellipse', min_samples, residual_threshold, max_trials);
     xc = ellipse(1); yc = ellipse(2); radius_x = ellipse(3); radius_y = ellipse(4); theta = ellipse(5); trunk_radius = (radius_x + radius_y) / 2;
+    inliers_idx = find(inliers == 1); outliers_idx = find(outliers == 1);
 
-    inliers_idx = find(inliers == 1);
-    outliers_idx = find(outliers == 1);
+    % visualization of main trunk diameter fitting
+    figure('Name', 'Trunk diameter estimation')
+    subplot(1, 3, 1)
+    % visualization of trunk root points clustering
+    plot_dbscan_clusters(trunk_root_pts, cluster_label)
+    xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
 
-    %% visualization of main trunk diameter fitting
-    figure('Name', 'Ellipse fitting')
-    scatter(fitting_pts(inliers_idx, 1), fitting_pts(inliers_idx, 2), '.', 'b'); hold on
-    scatter(fitting_pts(outliers_idx, 1), fitting_pts(outliers_idx, 2), '.', 'r');
+    subplot(1, 3, 2)
+    scatter(largest_trunk_cluster_pts(inliers_idx, 1), largest_trunk_cluster_pts(inliers_idx, 2), '.', 'r'); hold on
+    scatter(largest_trunk_cluster_pts(outliers_idx, 1), largest_trunk_cluster_pts(outliers_idx, 2), '.', 'b');
+    legend('RANSAC Inlier', 'RANSAC Outlier');
+    xlabel('x-axis'); ylabel('y-axis'); title('Original points in XY plane')
+
+    subplot(1, 3, 3)
+    scatter(largest_trunk_cluster_pts(inliers_idx, 1), largest_trunk_cluster_pts(inliers_idx, 2), '.', 'r'); hold on
     draw_ellipse(radius_x, radius_y, theta, xc, yc, 'k')
-
-    figure('Name', 'Ellipse from RANSAC')
-    subplot(1, 2, 1)
-    scatter(fitting_pts(inliers_idx, 1), fitting_pts(inliers_idx, 2), '.', 'r'); hold on
-    scatter(fitting_pts(outliers_idx, 1), fitting_pts(outliers_idx, 2), '.', 'b');
-    title('Original points in XY plane')
-
-    subplot(1, 2, 2)
-    scatter(fitting_pts(inliers_idx, 1), fitting_pts(inliers_idx, 2), '.', 'r'); hold on
-    draw_ellipse(radius_x, radius_y, theta, xc, yc, 'k')
-    title(['Radius: x-axis ', num2str(radius_x * 1e3, '%.1f'), ' y-axis: ', num2str(radius_y * 1e3, '%.1f'), ' avg: ', num2str(trunk_radius * 1e3, '%.1f'), ' mm'], 'color', [1, 0, 0]);
+    xlabel('x-axis'); ylabel('y-axis'); title(['Radius: x-axis ', num2str(radius_x * 1e3, '%.1f'), ' y-axis: ', num2str(radius_y * 1e3, '%.1f'), ' avg: ', num2str(trunk_radius * 1e3, '%.1f'), ' mm'], 'color', [1, 0, 0]);
 
     if SAVE_FIG
         filename = fullfile(output_folder, [tree_id, '_tree_diameter']);
@@ -313,7 +332,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     disp(['ransac trunk diameter threshold: ' num2str(residual_threshold)]);
     disp(['ransac trunk diameter max trials: ' num2str(max_trials)]);
 
-    P.trunk_diameter_pts = fitting_pts(inliers_idx, :);
+    P.trunk_diameter_pts = largest_trunk_cluster_pts(inliers_idx, :);
     P.trunk_diameter_ellipse = ellipse;
     P.trunk_radius = trunk_radius;
     save(new_skel_filepath, 'P');
