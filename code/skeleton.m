@@ -14,16 +14,17 @@ options.gridStep = 0.0048;
 options.USING_POINT_RING = GS.USING_POINT_RING;
 
 extension = '.ply';
-data_folder = 'D:\Data\Apple_Orchard\Lailiang_Cheng\LLC_04022022\Xiangtao_Segment\row 15\processed'; % folder storing original point cloud
-skel_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\row15\skeleton'; % folder storing extracted skeleton
+data_folder = 'D:\Data\Apple_Orchard\Lailiang_Cheng\LLC_04022022\Xiangtao_Segment\row 16\processed'; % folder storing original point cloud
+skel_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\row16\skeleton'; % folder storing extracted skeleton
 exp_id = 'hc_downsample_iter_7';
 
 files = dir([data_folder '\' '*' extension]);
 files = natsortfiles(files);
 
-for i = 1:9 
+for i = 10:length(files)
     filename = files(i).name;
     filepath = files(i).folder;
+    disp(['=========Tree ' num2str(filename) ' ========='])
     skeletonization(filepath, skel_folder, exp_id, filename, options);
 end
 
@@ -50,15 +51,19 @@ function [] = skeletonization(data_folder, skel_folder, exp_id, filename_, optio
 
     P.subsample_num = options.subsample_num;
 
-    if options.subsample_mode == 1
-        P.bin_size = options.bin_size;
-        P.num_iteration = options.num_iteration;
-        downsample_pt_normalized = Hilbertcurve_method(P.num_iteration, P.bin_size, P.subsample_num, original_pt_normalized);
-    elseif options.subsample_mode == 2
-        ratio = P.subsample_num / original_pt_normalized.Count;
-        downsample_pt_normalized = pcdownsample(original_pt_normalized, 'random', ratio); % visualization purpose only!
+    if P.subsample_num < original_pt_normalized.Count
+        if options.subsample_mode == 1
+            P.bin_size = options.bin_size;
+            P.num_iteration = options.num_iteration;
+            downsample_pt_normalized = Hilbertcurve_method(P.num_iteration, P.bin_size, P.subsample_num, original_pt_normalized);
+        elseif options.subsample_mode == 2
+            ratio = P.subsample_num / original_pt_normalized.Count;
+            downsample_pt_normalized = pcdownsample(original_pt_normalized, 'random', ratio); % visualization purpose only!
+        else
+            downsample_pt_normalized = pcdownsample(original_pt_normalized, 'gridAverage', options.gridStep);
+        end
     else
-        downsample_pt_normalized = pcdownsample(original_pt_normalized, 'gridAverage', options.gridStep);
+        downsample_pt_normalized = original_pt_normalized;
     end
 
     fprintf('number of points after downsampling: %d pts\n', downsample_pt_normalized.Count);

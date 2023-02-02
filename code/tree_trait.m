@@ -4,13 +4,13 @@ path('utility', path);
 path('plot', path);
 path('refinement', path);
 
-data_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data'; % folder storing original point cloud
-skel_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\segmentation'; % folder storing extracted skeleton
-exp_id = 'grid_downsample';
-extension = '.ply';
+skel_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\row13\segmentation'; % folder storing extracted skeleton
+exp_id = 'multiplier_by_3_cpc_sphere_radius_002';
+extension = '.mat';
 
 output_folder = fullfile(skel_folder, '..', 'characterization', exp_id);
-files = dir(fullfile(data_folder, ['tree*' extension]));
+files = dir(fullfile(skel_folder, exp_id, ['tree*' extension]));
+files = natsortfiles(files);
 skel_filename_format = '_contract_*_skeleton.mat';
 
 %% create folder to save results
@@ -21,11 +21,12 @@ end
 T = table();
 excel_filename = 'tree_trait.xlsx';
 total_branch_recall = 0;
-for i = 1:length(files) - 1
-    disp(['=========Tree ' num2str(i) ' ========='])
+for i = 1:length(files)
     file = files(i).name;
-    [filepath, tree_id, ext] = fileparts(file);
-
+    [filepath, name, ext] = fileparts(file);
+    split_file = split(name, '_');
+    tree_id = split_file{1};
+    disp(['=========Tree ' tree_id ' ========='])
     exp_folder = fullfile(skel_folder, exp_id);
     skel_filename = search_skeleton_file(tree_id, exp_folder, skel_filename_format);
     skel_filepath = fullfile(exp_folder, skel_filename);

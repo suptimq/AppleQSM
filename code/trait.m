@@ -7,7 +7,8 @@ function trait(tree_id, skel_folder, exp_id, excel_filename, options)
     TO_FUSION = options.TO_FUSION;
 
     skel_filename_format = '_contract_*_skeleton.mat';
-    skel_filename = search_skeleton_file(tree_id, fullfile(skel_folder, exp_id), skel_filename_format);
+    new_skel_folder = fullfile(skel_folder, '..', 'segmentation');
+    skel_filename = search_skeleton_file(tree_id, fullfile(new_skel_folder, exp_id), skel_filename_format);
     output_folder = fullfile(skel_folder, '..', 'characterization', exp_id);
     cad_save_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\Fusion\';
 
@@ -20,7 +21,7 @@ function trait(tree_id, skel_folder, exp_id, excel_filename, options)
         mkdir(cad_save_folder)
     end
 
-    skel_filepath = fullfile(skel_folder, exp_id, skel_filename);
+    skel_filepath = fullfile(new_skel_folder, exp_id, skel_filename);
     load(skel_filepath, 'P'); % P results from skeleton operation
 
     start = 0;

@@ -1,6 +1,6 @@
-data_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\characterization\';
-experiment_name = 'multiplier_by_3_cpc_sphere_radius_002';
-filename = 'tree_trait_1.xlsx';
+data_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\';
+experiment_name = '.';
+filename = 'all_tree_trait.xlsx';
 csv_filepath = fullfile(data_folder, experiment_name, filename);
 
 %% load data
@@ -13,7 +13,7 @@ y_label = 'Field Measurement';
 col_index = [2, 7];
 subtable = all_tree_data(:, col_index);
 
-x = str2double(subtable{:, 1})*100+50;
+x = str2double(subtable{:, 1})*100+60;
 y = subtable{:, 2};
 
 new_subtable = table(x, y);
