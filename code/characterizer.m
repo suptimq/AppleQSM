@@ -17,12 +17,11 @@ files = natsortfiles(files);
 %%====================================%%
 options.DEBUG = false;                                       % plot graph prior to MST
 options.LOGGING = false;                                   % logging
-options.TRUNK_REFINEMENT = false;          % trunk skeleton refinement
+options.TRUNK_REFINEMENT = true;          % trunk skeleton refinement
 options.BRANCH_REFINEMENT = true;        % branch skeleton refinement
 options.SAVE_PARAS = false;                             % save parameters for each tree
 options.LOAD_PARAS = false;                            
-options.SAVE_FIG = false;                                    % plot and save figures
-options.SHOW_CLUSTER_SPLIT = false;
+options.SAVE_FIG = true;                                    % plot and save figures
 
 %%====================================%%
 %%=====architecture trait extraction para=====%%
@@ -33,7 +32,7 @@ options.SAVE = true;
 options.CLEAR = false;
 options.TO_FUSION = false;
 
-for i = 1
+for i = 1:length(files)
     file = files(i).name;
     [filepath, name, ext] = fileparts(file);
     split_file = split(name, '_');

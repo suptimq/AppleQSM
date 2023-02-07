@@ -1,10 +1,18 @@
-function individual_branch_visualization(P, bottom_trunk_pc, bottom_trunk_skeleton_pc, bottom_primary_branch_pc, figname, colors)
+function individual_branch_visualization(P, bottom_trunk_pc, bottom_trunk_skeleton_pc, bottom_primary_branch_pc,  mode, figname, colors)
 
     PC_COLOR = [102, 153, 230] / 255;
 
-    [~, tmp_index] = ismember(bottom_primary_branch_pc.Location, P.branch_root_pts, 'row');
+    if strcmp(mode, 'primary')
+        branch_pts = P.branch_root_pts;
+        branch_pts_label = P.branch_root_label;
+    elseif strcmp(mode, 'entire')
+        branch_pts = P.entire_branch_pts;
+        branch_pts_label = P.entire_branch_label;
+    end
+
+    [~, tmp_index] = ismember(bottom_primary_branch_pc.Location, branch_pts, 'row');
     bottom_primary_branch_pc_w_label = select(bottom_primary_branch_pc, find(tmp_index ~= 0));
-    bottom_primary_branch_pc_label = P.branch_root_label(tmp_index(tmp_index ~= 0));
+    bottom_primary_branch_pc_label = branch_pts_label(tmp_index(tmp_index ~= 0));
     unique_label = unique(bottom_primary_branch_pc_label);
 
     figure('Name', figname)

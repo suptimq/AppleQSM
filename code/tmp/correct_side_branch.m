@@ -4,16 +4,12 @@ path('utility', path);
 path('plot', path);
 path('refinement', path);
 
-data_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data'; % folder storing original point cloud
-skel_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\segmentation'; % folder storing extracted skeleton
+skel_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\row13\segmentation'; % folder storing extracted skeleton
 exp_id = 'multiplier_by_3_cpc_sphere_radius_002';
 compare_exp_id = 'plain_mst';
 extension = '.ply';
 
-files = dir(fullfile(data_folder, ['tree*' extension]));
-
-file = files(9).name;
-[filepath, tree_id, ext] = fileparts(file);
+tree_id = 'tree4';
 skel_filename_format = '_contract_*_skeleton.mat';
 skel_filename = search_skeleton_file(tree_id, fullfile(skel_folder, exp_id), skel_filename_format);
 

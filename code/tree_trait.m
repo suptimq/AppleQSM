@@ -5,7 +5,7 @@ path('plot', path);
 path('refinement', path);
 
 skel_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\row13\segmentation'; % folder storing extracted skeleton
-exp_id = 'multiplier_by_3_cpc_sphere_radius_002';
+exp_id = 'hc_downsample_iter_7\alpha1_0.4';
 extension = '.mat';
 
 output_folder = fullfile(skel_folder, '..', 'characterization', exp_id);
@@ -21,7 +21,7 @@ end
 T = table();
 excel_filename = 'tree_trait.xlsx';
 total_branch_recall = 0;
-for i = 1:length(files)-1
+for i = 1:length(files)
     file = files(i).name;
     [filepath, name, ext] = fileparts(file);
     split_file = split(name, '_');

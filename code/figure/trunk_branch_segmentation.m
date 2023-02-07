@@ -4,16 +4,11 @@ path('utility', path);
 path('plot', path);
 path('refinement', path);
 
-data_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data'; % folder storing original point cloud
-skel_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\segmentation'; % folder storing extracted skeleton
-exp_id = 'multiplier_by_3_cpc_sphere_radius_002';
+skel_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\row13\segmentation'; % folder storing extracted skeleton
+exp_id = 'hc_downsample_iter_7';
 extension = '.ply';
 
-files = dir(fullfile(data_folder, ['tree*' extension]));
-
-id = 8;
-file = files(id).name;
-[filepath, tree_id, ext] = fileparts(file);
+tree_id = 'tree4';
 skel_filename_format = '_contract_*_skeleton.mat';
 skel_filename = search_skeleton_file(tree_id, fullfile(skel_folder, exp_id), skel_filename_format);
 
@@ -35,16 +30,15 @@ coarse_branch_pts = P.all_branch_pts;
 coarse_branch_pc = pointCloud(coarse_branch_pts);
 
 figure
-pcshow(pt, 'MarkerSize', 20); hold on
-set(gcf, 'Color', 'white'); set(gca, 'Color', 'white', 'XColor', 'black', 'YColor', 'black', 'ZColor', 'black');
-plot3(refined_main_trunk_pts(:, 1), refined_main_trunk_pts(:, 2), refined_main_trunk_pts(:, 3), '.', 'Color', PC_COLOR, 'MarkerSize', 20);
+ax1 = subplot(1, 4, 1);
+plot3(original_pt_normalized.Location(:, 1), original_pt_normalized.Location(:, 2), original_pt_normalized.Location(:, 3), '.', 'MarkerSize', 5, 'MarkerEdgeColor', PC_COLOR); hold on
+plot3(refined_main_trunk_pts(:, 1), refined_main_trunk_pts(:, 2), refined_main_trunk_pts(:, 3), '.', 'Color', 'red', 'MarkerSize', 20);
 scatter3(coarse_branch_pts(:, 1), coarse_branch_pts(:, 2), coarse_branch_pts(:, 3), 20, 'filled', 'o');
 grid on; axis equal;
 
 %%
-figure
-pcshow(pt, 'MarkerSize', 20); hold on
-set(gcf, 'Color', 'white'); set(gca, 'Color', 'white', 'XColor', 'black', 'YColor', 'black', 'ZColor', 'black');
+ax2 = subplot(1, 4, 2);
+plot3(original_pt_normalized.Location(:, 1), original_pt_normalized.Location(:, 2), original_pt_normalized.Location(:, 3), '.', 'MarkerSize', 5, 'MarkerEdgeColor', PC_COLOR); hold on
 plot_dbscan_clusters(P.branch_root_pts, P.branch_root_label);
 grid on; axis equal;
 
@@ -52,10 +46,8 @@ grid on; axis equal;
 start = 0;
 side_start = 0;
 colors = {'red', 'blue', 'yellow', 'green', 'cyan', 'magenta'};
-figure
-pcshow(pt, 'MarkerSize', 20); hold on
-set(gcf, 'Color', 'white');
-set(gca, 'Color', 'white', 'XColor', 'black', 'YColor', 'black', 'ZColor', 'black');
+ax3 = subplot(1, 4, 3);
+plot3(original_pt_normalized.Location(:, 1), original_pt_normalized.Location(:, 2), original_pt_normalized.Location(:, 3), '.', 'MarkerSize', 5, 'MarkerEdgeColor', PC_COLOR); hold on
 
 for i = 1:length(P.primary_center_size)
     primary_branch_pts_size = P.primary_center_size(i);
@@ -80,9 +72,8 @@ grid on; axis equal;
 %%
 start = 0;
 colors = {'red', 'blue', 'yellow', 'green', 'cyan', 'magenta'};
-figure
-pcshow(pt, 'MarkerSize', 20); hold on
-set(gcf, 'Color', 'white'); set(gca, 'Color', 'white', 'XColor', 'black', 'YColor', 'black', 'ZColor', 'black');
+ax4 = subplot(1, 4, 4);
+plot3(original_pt_normalized.Location(:, 1), original_pt_normalized.Location(:, 2), original_pt_normalized.Location(:, 3), '.', 'MarkerSize', 5, 'MarkerEdgeColor', PC_COLOR); hold on
 
 for i = 1:length(P.primary_center_size)
     primary_branch_pts_size = P.primary_center_size(i);
@@ -94,8 +85,11 @@ end
 
 grid on; axis equal;
 
+Link = linkprop([ax1, ax2, ax3, ax4], {'CameraUpVector', 'CameraPosition', 'CameraTarget', 'XLim', 'YLim', 'ZLim'});
+setappdata(gcf, 'StoreTheLink', Link);
+
 %% individual branches (missing branch root point)
-if id == 5
+if strcmp(tree_id, 'tree5')
     roi = [-0.15, 0.4, -0.25, 0.4, -1, -0.65];
     bottom_trunk_index = findPointsInROI(original_pt_normalized, roi);
     bottom_trunk_pc = select(original_pt_normalized, bottom_trunk_index);
@@ -110,7 +104,7 @@ if id == 5
 
     colors = {'red', 'blue', 'yellow', 'green', 'cyan', 'magenta'};
     figname1 = 'Bottom primary branch 1';
-    individual_branch_visualization(P, bottom_trunk_pc, bottom_trunk_skeleton_pc, bottom_primary_branch_pc, figname1, colors);
+    individual_branch_visualization(P, bottom_trunk_pc, bottom_trunk_skeleton_pc, bottom_primary_branch_pc, 'primary', figname1, colors);
 
     % individual branches (one node two branches)
     roi = [0, 0.14, -0.2, 0.03, -0.5, -0.4];
@@ -127,9 +121,9 @@ if id == 5
 
     colors = {'red', 'magenta', 'blue', 'yellow'};
     figname2 = 'Bottom primary branch 2';
-    individual_branch_visualization(P, bottom_trunk_pc, bottom_trunk_skeleton_pc, bottom_primary_branch_pc, figname2, colors);
+    individual_branch_visualization(P, bottom_trunk_pc, bottom_trunk_skeleton_pc, bottom_primary_branch_pc, 'primary', figname2, colors);
 
-elseif id == 8
+elseif strcmp(tree_id, 'tree8')
     roi = [-0.1, 0.1, -0.08, 0.2, -0.25, -0.05];
     bottom_trunk_index = findPointsInROI(original_pt_normalized, roi);
     bottom_trunk_pc = select(original_pt_normalized, bottom_trunk_index);
@@ -144,7 +138,7 @@ elseif id == 8
 
     colors = {'red', 'blue', 'yellow', 'green', 'cyan', 'magenta'};
     figname1 = 'Bottom primary branch 1';
-    individual_branch_visualization(P, bottom_trunk_pc, bottom_trunk_skeleton_pc, bottom_primary_branch_pc, figname1, colors);
+    individual_branch_visualization(P, bottom_trunk_pc, bottom_trunk_skeleton_pc, bottom_primary_branch_pc, 'primary', figname1, colors);
 
     roi = [-0.08, 0.06, -0.1, 0.13, -0.76, -0.6];
     bottom_trunk_index = findPointsInROI(original_pt_normalized, roi);
@@ -160,7 +154,39 @@ elseif id == 8
 
     colors = {'red', 'blue', 'yellow', 'green', 'cyan', 'magenta'};
     figname1 = 'Bottom primary branch 2';
-    individual_branch_visualization(P, bottom_trunk_pc, bottom_trunk_skeleton_pc, bottom_primary_branch_pc, figname1, colors);
+    individual_branch_visualization(P, bottom_trunk_pc, bottom_trunk_skeleton_pc, bottom_primary_branch_pc, 'primary', figname1, colors);
+elseif strcmp(tree_id, 'tree1')
+    roi = [-0.1, 0.54, -0.25, 0.1, -0.4, -0.1];
+    bottom_trunk_index = findPointsInROI(original_pt_normalized, roi);
+    bottom_trunk_pc = select(original_pt_normalized, bottom_trunk_index);
+
+    roi = [-0.1, 0.54, -0.25, 0.1, -0.4, -0.1];
+    bottom_trunk_index = findPointsInROI(refined_main_trunk_pc, roi);
+    bottom_trunk_skeleton_pc = select(refined_main_trunk_pc, bottom_trunk_index);
+
+    roi = [-0.05, 0.54, -0.25, 0.08, -0.4, -0.1];
+    bottom_primary_branch_index = findPointsInROI(coarse_branch_pc, roi);
+    bottom_primary_branch_pc = select(coarse_branch_pc, bottom_primary_branch_index);
+
+    colors = {'red', 'blue', 'yellow', 'green', 'cyan', 'magenta'};
+    figname1 = 'Bottom primary branch 1';
+    individual_branch_visualization(P, bottom_trunk_pc, bottom_trunk_skeleton_pc, bottom_primary_branch_pc, 'entire', figname1, colors);
+elseif strcmp(tree_id, 'tree4')
+    roi = [-0.15, 0.2, -0.5, 0, 0.32, 0.7];
+    bottom_trunk_index = findPointsInROI(original_pt_normalized, roi);
+    bottom_trunk_pc = select(original_pt_normalized, bottom_trunk_index);
+
+    roi = [-0.15, 0.2, -0.5, 0, 0.32, 0.7];
+    bottom_trunk_index = findPointsInROI(refined_main_trunk_pc, roi);
+    bottom_trunk_skeleton_pc = select(refined_main_trunk_pc, bottom_trunk_index);
+
+    roi = [-0.15, 0.2, -0.5, 0, 0.32, 0.7];
+    bottom_primary_branch_index = findPointsInROI(coarse_branch_pc, roi);
+    bottom_primary_branch_pc = select(coarse_branch_pc, bottom_primary_branch_index);
+
+    colors = {'red', 'blue', 'yellow', 'green', 'cyan', 'magenta'};
+    figname1 = 'Bottom primary branch 1';
+    individual_branch_visualization(P, bottom_trunk_pc, bottom_trunk_skeleton_pc, bottom_primary_branch_pc, 'entire', figname1, colors);
 end
 
 %%
