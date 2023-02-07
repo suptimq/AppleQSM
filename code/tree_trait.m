@@ -21,7 +21,7 @@ end
 T = table();
 excel_filename = 'tree_trait.xlsx';
 total_branch_recall = 0;
-for i = 1:length(files)
+for i = 1:length(files)-1
     file = files(i).name;
     [filepath, name, ext] = fileparts(file);
     split_file = split(name, '_');

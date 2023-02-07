@@ -1,4 +1,4 @@
-function trait(tree_id, skel_folder, exp_id, excel_filename, options)
+function branch_trait(skel_folder, tree_id, exp_id, excel_filename, options)
 
     SHOW = options.SHOW;
     SHOW_BRANCH = options.SHOW_BRANCH;

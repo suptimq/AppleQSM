@@ -14,21 +14,21 @@ options.gridStep = 0.0048;
 options.USING_POINT_RING = GS.USING_POINT_RING;
 
 extension = '.ply';
-data_folder = 'D:\Data\Apple_Orchard\Lailiang_Cheng\LLC_04022022\Xiangtao_Segment\row 16\processed'; % folder storing original point cloud
-skel_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\row16\skeleton'; % folder storing extracted skeleton
+data_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\row13'; % folder storing original point cloud
+skel_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\row13\skeleton'; % folder storing extracted skeleton
 exp_id = 'hc_downsample_iter_7';
 
 files = dir([data_folder '\' '*' extension]);
 files = natsortfiles(files);
 
-for i = 10:length(files)
+for i = 1:length(files)-1
     filename = files(i).name;
     filepath = files(i).folder;
     disp(['=========Tree ' num2str(filename) ' ========='])
-    skeletonization(filepath, skel_folder, exp_id, filename, options);
+    skeleton(filepath, skel_folder, exp_id, filename, options);
 end
 
-function [] = skeletonization(data_folder, skel_folder, exp_id, filename_, options)
+function [] = skeleton(data_folder, skel_folder, exp_id, filename_, options)
 
     close all;
 
@@ -69,6 +69,7 @@ function [] = skeletonization(data_folder, skel_folder, exp_id, filename_, optio
     fprintf('number of points after downsampling: %d pts\n', downsample_pt_normalized.Count);
 
     P.pts = double(downsample_pt_normalized.Location);
+    P.pts_color = double(downsample_pt_normalized.Color);
     P.npts = size(P.pts, 1);
     [P.bbox, P.diameter] = GS.compute_bbox(P.pts);
 
