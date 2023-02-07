@@ -638,8 +638,8 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     internode_pair = {}; % valid trunk and branch internodes
     visited = zeros(size(P.spls, 1), 1); % if points have been already assigned to one of primary branches
     visited_id = cell(size(P.spls, 1), 1);
-    MST_list = {};
-    MST_node_list = {};
+    MST_cell = {};
+    rest_weighted_graph_cell = {};
 
     if isempty(updated_cluster_pts_list)
         error('===================Characterization Failure===================')
@@ -662,7 +662,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
         density_weight_normalized_rest = density_weight_normalized(rest_index);
         distance_weight_normalized_rest = distance_weight_normalized(rest_index);
         rest_MST_weight = coefficient_density_weight * density_weight_normalized_rest + (1 - coefficient_density_weight) * distance_weight_normalized_rest;
-        rest_weighted_graph = graph(adj_idx_rest(1, :), adj_idx_rest(2, :), rest_MST_weight);
+        rest_weighted_graph = graph(adj_idx_rest(1, :), adj_idx_rest(2, :), rest_MST_weight, string(1:max(adj_idx_rest(:)))); % add node labels so that rmnode won't change node numbering
 
         MSTs_length = zeros(length(cur_cluster_pts_idx), 1);
 
@@ -698,10 +698,11 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
         branch_point_idx_max_MST = cur_cluster_pts_idx(MST_max_idx); % index in rest_pts
 
         [MST, ~] = minspantree(rest_weighted_graph, 'Type', 'tree', 'Root', findnode(rest_weighted_graph, branch_point_idx_max_MST));
-        MST_nodes = table2array(MST.Edges);
-        MST_nodes_unique = unique(MST_nodes(:, 1:2));
-        MST_list{branch_counter} = MST;
-        MST_node_list{branch_counter} = MST_nodes_unique;
+        MST_nodes_string = MST.Edges(:, 1);
+        MST_nodes =  str2double(MST_nodes_string{:,:});
+        MST_nodes_unique = unique(MST_nodes(:));
+        MST_cell{branch_counter} = MST;
+        rest_weighted_graph_cell{branch_counter} = rest_weighted_graph;
 
         [~, tmp] = ismember(rest_pts(MST_nodes_unique, :), P.spls, 'row'); % the entire branch points (index in spls)
         tmp = unique([tmp; cur_cluster_pts_index_in_spls]); %make sure cluster points are included
@@ -796,6 +797,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
 
             visited_group_angle = cell(length(visited_group), 1);
             new_cluster_pts = cell(length(unique_overcount_branch_cluster_label), 1);
+            new_cluster_pts_index = cell(length(unique_overcount_branch_cluster_label), 1); 
 
             for j = 1:length(unique_overcount_branch_cluster_label)
 
@@ -803,6 +805,8 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
                 tmp_index = overcount_branch_cluster_label == tmp_cluster_label;
                 overcount_branch_cluster_pts = overcount_branch_pts(tmp_index, :);
                 new_cluster_pts{j} = overcount_branch_cluster_pts;
+                [~, tmp_index] = ismember(overcount_branch_cluster_pts, rest_pts, 'row');
+                new_cluster_pts_index{j} = tmp_index; % index in rest_pts
 
                 for k = 1:length(visited_group)
                     group_id = visited_group(k);
@@ -848,6 +852,17 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
                 [~, ii] = ismember(overcount_branch_cluster_pts, P.spls, 'row');
                 merge_group_id = visited_group(j);
                 branch_pts_idx{merge_group_id} = [branch_pts_idx{merge_group_id}; ii];
+
+                % remove points in other MST
+                for k = 1:length(visited_group)
+                    if k ~= j
+                        group_id = visited_group(k);
+                        MST = MST_cell{group_id};
+                        updated_MST = rmnode(MST, findnode(rest_weighted_graph_cell{group_id}, new_cluster_pts_index{tmp_index(1)}));
+                        MST_cell{group_id} = updated_MST;
+                    end
+                end
+
             end
 
         end
@@ -859,9 +874,13 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
 
     colors = {'red', 'blue', 'yellow', 'green', 'cyan', 'magenta', 'white'};
 
+    entire_branch_pts =[];
+    entire_branch_label = [];
     for i = 1:branch_counter
         cur_branch_pts_idx = branch_pts_idx{i};
         cur_branch_pts = P.spls(cur_branch_pts_idx, :);
+        entire_branch_pts = [entire_branch_pts; cur_branch_pts];
+        entire_branch_label = [entire_branch_label; ones(size(cur_branch_pts, 1), 1) * i];
         tmp_pts = cur_branch_pts(1, :);
         plot3(cur_branch_pts(:, 1), cur_branch_pts(:, 2), cur_branch_pts(:, 3), '.', 'Color', colors{rem(i, length(colors)) + 1}, 'MarkerSize', 20);
         text(tmp_pts(1), tmp_pts(2), tmp_pts(3) + 0.02, num2str(i), 'Color', 'red', 'HorizontalAlignment', 'left', 'FontSize', 12);
@@ -869,6 +888,11 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
 
     title(['Clusters: ', num2str(branch_counter)], 'color', [1, 0, 0]);
     xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
+
+    P.entire_branch_pts = entire_branch_pts;
+    P.entire_branch_label = entire_branch_label;
+    P.entire_branch_counter = branch_counter;
+    save(new_skel_filepath, 'P');
 
     %%-------------------------------------------------------------------%%
     %%-------------------Primary Branch Identification-------------------%%
@@ -883,8 +907,10 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     for j = 1:branch_counter
         cur_branch_pts_idx = branch_pts_idx{j};
         branch_pts = P.spls(cur_branch_pts_idx, :);
-        MST = MST_list{j};
-        MST_node = MST_node_list{j};
+        MST = MST_cell{j};
+        MST_nodes_string = MST.Edges(:, 1);
+        MST_nodes =  str2double(MST_nodes_string{:,:});
+        MST_nodes_unique = unique(MST_nodes(:));
 
         [~, ~, col] = find_internode(branch_pts, refined_main_trunk_pts, 0.1, false);
         [~, branch_internode_index_in_rest_pts] = ismember(branch_pts(col, :), rest_pts, 'row');
@@ -893,7 +919,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
         d_m = pdist2(double(branch_pts), double(branch_pts(col, :)));
         [~, tmp_index] = mink(d_m, size(branch_pts, 1));
 
-        while ~ismember(branch_internode_index_in_rest_pts, MST_node)
+        while ~ismember(branch_internode_index_in_rest_pts, MST_nodes_unique)
             tmp_index(1) = [];
             col = tmp_index(1);
             [~, branch_internode_index_in_rest_pts] = ismember(branch_pts(col, :), rest_pts, 'row');
@@ -905,7 +931,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
         for k = 1:size(branch_pts, 1)
             cur_branch_pts = branch_pts(k, :);
             [~, tmp] = ismember(cur_branch_pts, rest_pts, 'row'); % index in terms of rest_pts (which MST built upon)
-            [node, distance] = shortestpath(MST, branch_internode_index_in_rest_pts, tmp);
+            [node, distance] = shortestpath(MST, string(branch_internode_index_in_rest_pts), string(tmp));
 
             if isempty(node)
                 distance = 0;
@@ -915,17 +941,13 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
             shortest_path_distance(k) = distance;
         end
 
-        if sum(shortest_path_distance) ~= 0
-            primary_branch_counter = primary_branch_counter + 1;
-            [~, max_weight_idx] = max(shortest_path_distance);
-            shortest_path_node = shortest_path_nodes{max_weight_idx}; % The node was already sorted based on its correponding distance to the source node
-            [~, tmp] = ismember(rest_pts(shortest_path_node, :), P.spls, 'row');
-            primary_branch_pts_idx{primary_branch_counter} = tmp;
-        end
+        assert(sum(shortest_path_distance) ~= 0, 'Not Found Any Valid Shortest Path in Primary Branch Identification');
+        primary_branch_counter = primary_branch_counter + 1;
+        [~, max_weight_idx] = max(shortest_path_distance);
+        shortest_path_node = str2double(shortest_path_nodes{max_weight_idx}); % The node was already sorted based on its correponding distance to the source node
+        [~, tmp] = ismember(rest_pts(shortest_path_node, :), P.spls, 'row');
+        primary_branch_pts_idx{primary_branch_counter} = tmp;
     end
-
-    P.primary_branch_counter = primary_branch_counter;
-    save(new_skel_filepath, 'P');
 
     figure('Name', 'Primary branch identification')
     ax1 = subplot(1, 2, 1);
@@ -939,7 +961,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
         text(tmp_pts(1), tmp_pts(2), tmp_pts(3) + 0.02, num2str(i), 'Color', 'red', 'HorizontalAlignment', 'left', 'FontSize', 12);
     end
 
-    title(['Clusters: ', num2str(branch_counter)], 'color', [1, 0, 0]);
+    title(['Clusters: ', num2str(primary_branch_counter)], 'color', [1, 0, 0]);
     xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
 
     ax2 = subplot(1, 2, 2);
