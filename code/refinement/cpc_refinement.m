@@ -14,7 +14,12 @@ function [ori_cpc_optimized_center, ori_cpc_optimized_radius, ori_cpc_optimized_
     % retrieve corresponding surface point
     pts1 = P.spls(i, :);
     loc1 = backproject(pts1, P);
-    pts1_ori = P.pts(loc1, :);
+    
+    if isempty(loc1)
+        pts1_ori = pts1;
+    else
+        pts1_ori = P.pts(loc1, :);
+    end
 
     % sphere pruning
     original_pt_normalized = P.original_pt;
