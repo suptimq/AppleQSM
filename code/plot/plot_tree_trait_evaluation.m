@@ -1,6 +1,6 @@
-data_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\';
-experiment_name = '.';
-filename = 'all_tree_trait.xlsx';
+data_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\row13\characterization';
+experiment_name = 'hc_downsample_iter_7\s1';
+filename = 'tree_trait.xlsx';
 csv_filepath = fullfile(data_folder, experiment_name, filename);
 
 %% load data
@@ -9,7 +9,7 @@ all_tree_data = readtable(csv_filepath);
 x_label = 'Estimation';
 y_label = 'Field Measurement';
 
-intercept = false;
+intercept = true;
 %% linear regression and robust linear linear regression
 col_index = [2, 7];
 subtable = all_tree_data(:, col_index);

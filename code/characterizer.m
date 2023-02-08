@@ -5,8 +5,8 @@ path('plot', path);
 path('refinement', path);
 
 data_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\row13'; % folder storing original point cloud
-skel_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\row13\skeleton'; % folder storing extracted skeleton
-exp_id = 'hc_downsample_iter_7';
+skel_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\row13\segmentation'; % folder storing extracted skeleton
+exp_id = 'hc_downsample_iter_7\s1_cpc_0.01';
 extension = '.mat';
 
 files = dir(fullfile(skel_folder, exp_id, ['tree*' extension]));
@@ -38,6 +38,6 @@ for i = 1:length(files)
     split_file = split(name, '_');
     tree_id = split_file{1};
     disp(['=========Tree ' num2str(tree_id) ' ========='])
-    segmentation(data_folder, skel_folder, tree_id, exp_id, options);
-%     branch_trait(skel_folder, tree_id, exp_id, '_branch_trait.xlsx', options);
+%     segmentation(data_folder, skel_folder, tree_id, exp_id, options);
+    branch_trait(skel_folder, tree_id, exp_id, '_branch_trait.xlsx', options);
 end

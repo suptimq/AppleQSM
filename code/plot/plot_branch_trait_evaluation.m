@@ -1,6 +1,6 @@
 data_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\row13\characterization\';
-experiment_name = 'multiplier_by_3_cpc_sphere_radius_002';
-filename = 'all_tree.csv';
+experiment_name = 'hc_downsample_iter_7\s1';
+filename = 'branch_trait.csv';
 csv_filepath = fullfile(data_folder, experiment_name, filename);
 
 %% load data

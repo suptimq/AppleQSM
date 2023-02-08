@@ -2,9 +2,9 @@ clc; clear; close all;
 path('..', path)
 
 data_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data'; % folder storing original point cloud
-skel_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\row13\segmentation\hc_downsample_iter_7'; % folder storing extracted skeleton
+skel_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\row13\segmentation\hc_downsample_iter_7\s1_cpc_0.01'; % folder storing extracted skeleton
 
-tree_id = 'tree9';
+tree_id = 'tree1';
 skel_filename_format = '_contract_*_skeleton.mat';
 skel_filename = search_skeleton_file(tree_id, skel_folder, skel_filename_format);
 
@@ -37,14 +37,13 @@ invalid_centers = [P.primary_branch_center(invalid_primary_branch_index, :); P.s
 invalid_radii = [P.primary_branch_radius(invalid_primary_branch_index); P.side_branch_radius(invalid_side_branch_index)];
 
 figure('Name', 'Optimized branch skeleton pts')
-ax1 = subplot(1, 2, 1);
 pcshow(P.branch_pc, 'Markersize', 30); hold on
 plot3(P.primary_branch_center(:, 1), P.primary_branch_center(:, 2), P.primary_branch_center(:, 3), '.r', 'Markersize', 30)
 plot3(P.side_branch_center(:, 1), P.side_branch_center(:, 2), P.side_branch_center(:, 3), '.b', 'Markersize', 30)
 plot3(invalid_centers(:, 1), invalid_centers(:, 2), invalid_centers(:, 3), '.g', 'Markersize', 30)
 xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); axis equal; grid on;
 
-ax2 = subplot(1, 2, 2);
+figure('Name', 'Optimized branch skeleton pts w/ weight')
 pcshow(P.branch_pc, 'Markersize', 30); hold on
 plot_by_weight(valid_centers, valid_radii / P.trunk_radius);
 xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); axis equal; grid on;
