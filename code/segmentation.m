@@ -527,7 +527,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
 
     mean_internode_point_distance = mean(internode_point_distance);
     std_internode_point_distance = std(internode_point_distance);
-    point_distance_threshold = mean_internode_point_distance + 3 * std_internode_point_distance;
+    point_distance_threshold = mean_internode_point_distance + 3.5 * std_internode_point_distance;
 
     for i = 1:length(unique_cluster_label)
 
