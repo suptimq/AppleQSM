@@ -595,7 +595,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     plot_dbscan_clusters(updated_cluster_pts_list, updated_cluster_label);
 
     if ~isempty(noise_cluster_pts_list)
-        plot3(noise_cluster_pts_list(:, 1), noise_cluster_pts_list(:, 2), noise_cluster_pts_list(:, 3), '.r', 'MarkerSize', 15);
+        plot3(noise_cluster_pts_list(:, 1), noise_cluster_pts_list(:, 2), noise_cluster_pts_list(:, 3), '.white', 'MarkerSize', 15);
     end
 
     xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
@@ -653,19 +653,28 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
         [~, cur_cluster_pts_index_in_spls] = ismember(cur_cluster_pts, P.spls, 'row');
         [~, cur_cluster_pts_idx] = ismember(cur_cluster_pts, rest_pts, 'row');
         rest_cluster_pts_idx = setdiff(updated_cluster_pts_index_in_rest_pts, cur_cluster_pts_idx);
+        
+        %% plot connectivity for each rest graph
+%         rest_branch_pts_index = setdiff(1:size(rest_pts, 1), rest_cluster_pts_idx);
+%         rest_branch_pts = rest_pts(rest_branch_pts_index, :);
+%         adj_matrix_rest = adj_matrix(rest_branch_pts_index, rest_branch_pts_index);
+%         figure;
+%         plot3(rest_branch_pts(:, 1), rest_branch_pts(:, 2), rest_branch_pts(:, 3), '.b', 'MarkerSize', 15); hold on
+%         plot3(cur_cluster_pts(:, 1), cur_cluster_pts(:, 2), cur_cluster_pts(:, 3), '.r', 'MarkerSize', 15);
+%         plot_connectivity(rest_branch_pts, adj_matrix_rest, sizee, colore);
+%         grid on; axis equal;
 
         % remove other cluster points from the graph
         adj_idx_trans = adj_idx';
-        [~, tmp_index] = ismember(rest_cluster_pts_idx, adj_idx_trans);
-        rest_index = setdiff(1:size(adj_idx, 2), tmp_index);
-        adj_idx_rest = adj_idx(:, rest_index);
-        density_weight_normalized_rest = density_weight_normalized(rest_index);
-        distance_weight_normalized_rest = distance_weight_normalized(rest_index);
+        [~, tmp_index] = ismember(adj_idx_trans(:, :), rest_cluster_pts_idx);
+        valid_row = find(all(tmp_index == 0, 2));
+        adj_idx_rest = adj_idx(:, valid_row);
+        density_weight_normalized_rest = density_weight_normalized(valid_row);
+        distance_weight_normalized_rest = distance_weight_normalized(valid_row);
         rest_MST_weight = coefficient_density_weight * density_weight_normalized_rest + (1 - coefficient_density_weight) * distance_weight_normalized_rest;
         rest_weighted_graph = graph(adj_idx_rest(1, :), adj_idx_rest(2, :), rest_MST_weight, string(1:max(adj_idx_rest(:)))); % add node labels so that rmnode won't change node numbering
 
         MSTs_length = zeros(length(cur_cluster_pts_idx), 1);
-
         % go over each point in the cluster
         for j = 1:length(cur_cluster_pts_idx)
             cur_pts_in_MST_idx = cur_cluster_pts_idx(j); % index in rest_pts
@@ -705,7 +714,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
         rest_weighted_graph_cell{branch_counter} = rest_weighted_graph;
 
         [~, tmp] = ismember(rest_pts(MST_nodes_unique, :), P.spls, 'row'); % the entire branch points (index in spls)
-        tmp = unique([tmp; cur_cluster_pts_index_in_spls]); %make sure cluster points are included
+        tmp = unique([tmp; cur_cluster_pts_index_in_spls]); % make sure cluster points are included
         visited(tmp) = visited(tmp) + 1;
 
         for k = 1:length(tmp)
@@ -756,7 +765,8 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     for j = 1:branch_counter
         cur_branch_pts_index = branch_pts_idx{j};
         intersect_index = intersect(cur_branch_pts_index, overcount_branch_pts_index);
-        branch_pts_idx{j} = setdiff(branch_pts_idx{j}, intersect_index);
+        rest_branch_pts = setdiff(cur_branch_pts_index, intersect_index);
+        branch_pts_idx{j} = rest_branch_pts;
     end
 
     figure('Name', 'Entire branch identification')
