@@ -10,7 +10,7 @@ function branch_trait(skel_folder, tree_id, exp_id, excel_filename, options)
     new_skel_folder = fullfile(skel_folder, '..', 'segmentation');
     skel_filename = search_skeleton_file(tree_id, fullfile(new_skel_folder, exp_id), skel_filename_format);
     output_folder = fullfile(skel_folder, '..', 'characterization', exp_id);
-    cad_save_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\Fusion\';
+    cad_save_folder = fullfile(skel_folder, '..', 'Fusion', exp_id);
 
     %% create folder to save results
     if ~exist(output_folder, 'dir')
@@ -103,7 +103,7 @@ function branch_trait(skel_folder, tree_id, exp_id, excel_filename, options)
             branch_internode_ratio = [branch_internode_ratio, ratio_distance];
             branch_angle_list = [branch_angle_list, vertical_angle];
             branch_diameter_list = [branch_diameter_list, radius];
-            branch_pts_cell{i} = primary_branch_pts;
+            branch_pts_cell{i} = primary_spline_pts;
         end
 
         if SHOW_BRANCH
