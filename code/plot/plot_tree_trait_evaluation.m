@@ -1,15 +1,16 @@
-data_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\row13\characterization';
-experiment_name = 'hc_downsample_iter_7\s1';
-filename = 'tree_trait.xlsx';
+data_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\';
+experiment_name = '.';
+filename = 'all_tree_trait.xlsx';
 csv_filepath = fullfile(data_folder, experiment_name, filename);
 
 %% load data
-all_tree_data = readtable(csv_filepath);
+sheetname = 'All';
+all_tree_data = readtable(csv_filepath, 'Sheet', sheetname);
 
 x_label = 'Estimation';
 y_label = 'Field Measurement';
 
-intercept = true;
+intercept = false;
 %% linear regression and robust linear linear regression
 col_index = [2, 7];
 subtable = all_tree_data(:, col_index);
@@ -20,7 +21,7 @@ y = subtable{:, 2};
 new_subtable = table(x, y);
 
 mdlr = fitlm(new_subtable, 'Intercept', intercept);
-mdblr = fitlm(new_subtable,  'Intercept', intercept, 'RobustOpts', 'on');
+mdblr = fitlm(new_subtable,  'Intercept', intercept, 'RobustOpts', 'huber');
 
 bls = mdlr.Coefficients{:, 1};
 brob = mdblr.Coefficients{:, 1};
@@ -67,7 +68,7 @@ y = subtable{:, 2};
 new_subtable = table(x, y);
 
 mdlr = fitlm(new_subtable, 'Intercept', intercept);
-mdblr = fitlm(new_subtable,  'Intercept', intercept, 'RobustOpts', 'on');
+mdblr = fitlm(new_subtable,  'Intercept', intercept, 'RobustOpts', 'huber');
 
 bls = mdlr.Coefficients{:, 1};
 brob = mdblr.Coefficients{:, 1};
@@ -108,4 +109,4 @@ else
     suffix = 'false';
 end
 
-saveas(gcf, fullfile(data_folder, experiment_name, ['tree_MATLAB_intercept_' suffix '.png']));
+saveas(gcf, fullfile(data_folder, experiment_name, ['tree_huber_' sheetname, '_MATLAB_intercept_' suffix '.png']));

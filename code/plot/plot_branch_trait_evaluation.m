@@ -1,10 +1,11 @@
 data_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\row13\characterization\';
 experiment_name = 'hc_downsample_iter_7\s1';
-filename = 'branch_trait.csv';
+filename = 'branch_trait.xlsx';
 csv_filepath = fullfile(data_folder, experiment_name, filename);
 
 %% load data
-all_tree_data = readtable(csv_filepath);
+sheetname = 'Adjusted';
+all_tree_data = readtable(csv_filepath, 'Sheet', sheetname);
 
 x_label = 'Estimation';
 y_label = 'Field Measurement';
@@ -18,7 +19,7 @@ x = subtable{:, 1};
 y = subtable{:, 2};
 
 mdlr = fitlm(subtable, 'Intercept', intercept);
-mdblr = fitlm(subtable,  'Intercept', intercept, 'RobustOpts', 'on');
+mdblr = fitlm(subtable,  'Intercept', intercept, 'RobustOpts', 'huber');
 
 bls = mdlr.Coefficients{:, 1};
 brob = mdblr.Coefficients{:, 1};
@@ -62,7 +63,7 @@ x = subtable{:, 1};
 y = subtable{:, 2};
 
 mdlr = fitlm(subtable, 'Intercept', intercept);
-mdblr = fitlm(subtable,  'Intercept', intercept, 'RobustOpts', 'on');
+mdblr = fitlm(subtable,  'Intercept', intercept, 'RobustOpts', 'huber');
 
 bls = mdlr.Coefficients{:, 1};
 brob = mdblr.Coefficients{:, 1};
@@ -102,4 +103,4 @@ else
     suffix = 'false';
 end
 
-saveas(gcf, fullfile(data_folder, experiment_name, ['branch_MATLAB_intercept_' suffix '.png']));
+saveas(gcf, fullfile(data_folder, experiment_name, ['branch_huber_' sheetname, '_MATLAB_intercept_' suffix '.png']));
