@@ -6,7 +6,7 @@ path('refinement', path);
 
 data_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\row13'; % folder storing original point cloud
 skel_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\row13\segmentation'; % folder storing extracted skeleton
-exp_id = 'hc_downsample_iter_7\s1_cpc_0.01';
+exp_id = 'hc_downsample_iter_7\s1';
 extension = '.mat';
 
 files = dir(fullfile(skel_folder, exp_id, ['tree*' extension]));
@@ -17,8 +17,8 @@ files = natsortfiles(files);
 %%====================================%%
 options.DEBUG = false;                                       % plot graph prior to MST
 options.LOGGING = false;                                   % logging
-options.TRUNK_REFINEMENT = true;          % trunk skeleton refinement
-options.BRANCH_REFINEMENT = true;        % branch skeleton refinement
+options.TRUNK_REFINEMENT = false;          % trunk skeleton refinement
+options.BRANCH_REFINEMENT = false;        % branch skeleton refinement
 options.SAVE_PARAS = false;                             % save parameters for each tree
 options.LOAD_PARAS = false;                            
 options.SAVE_FIG = true;                                    % plot and save figures
@@ -27,12 +27,12 @@ options.SAVE_FIG = true;                                    % plot and save figu
 %%=====architecture trait extraction para=====%%
 %%====================================%%
 options.SHOW = false;
-options.SHOW_BRANCH = false;
-options.SAVE = true;
+options.SHOW_BRANCH = true;
+options.SAVE = false;
 options.CLEAR = false;
-options.TO_FUSION = false;
+options.TO_FUSION = true;
 
-for i = 1:length(files)
+for i = length(files)
     file = files(i).name;
     [filepath, name, ext] = fileparts(file);
     split_file = split(name, '_');

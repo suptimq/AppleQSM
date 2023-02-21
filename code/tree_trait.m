@@ -1,11 +1,11 @@
-clc; clear; close all;
+close all;
 path('confidence', path);
 path('utility', path);
 path('plot', path);
 path('refinement', path);
 
-skel_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\row13\segmentation'; % folder storing extracted skeleton
-exp_id = 'hc_downsample_iter_7\s1';
+skel_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\row15\segmentation'; % folder storing extracted skeleton
+exp_id = 'hc_downsample_iter_7';
 extension = '.mat';
 
 output_folder = fullfile(skel_folder, '..', 'characterization', exp_id);
@@ -36,7 +36,8 @@ for i = 1:length(files)
     trunk_length =  P.main_trunk_length;
     trunk_radius = P.trunk_radius;
     branch_recall = P.branch_counter;
-
+    disp(['Branch recall: ', num2str(branch_recall)]);
+    
     total_branch_recall = total_branch_recall + branch_recall;
 
     T = [T; {tree_id, num2str(tree_height, '%.3f'), num2str(trunk_length, '%.3f'), num2str(trunk_radius, '%.3f'), num2str(branch_recall, '%.3f')}];
