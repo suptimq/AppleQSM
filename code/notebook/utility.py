@@ -59,18 +59,30 @@ def calibrate_branch_trait(field_measurement_df, sensor_measurement_df):
     return valid_sensor_measurement_df
 
 
-def plot_best_ransac_fit(x, y):
+def calibrate_branch_trait_from_other_excel(sensor_measurement_df, field_measurement_df):
+
+    tmp_df = sensor_measurement_df.loc[~sensor_measurement_df['Label'].isnull(), :]
+    valid_sensor_measurement_df = tmp_df.copy()
+    valid_sensor_measurement_df['Section_Index'] = valid_sensor_measurement_df['Label'].apply(lambda x: int(x.split('_')[0][-1]))
+    valid_sensor_measurement_df['Color'] = valid_sensor_measurement_df['Label'].apply(lambda x: x.split('_')[1])
+    calibrated_sensor_measurement_df = calibrate_branch_trait(field_measurement_df, valid_sensor_measurement_df)
+    
+    return calibrated_sensor_measurement_df  
+
+
+def plot_best_ransac_fit(x, y, fit_intercept):
     
     x = x.values.reshape(-1, 1)
     y = y.values.reshape(-1, 1)
 
-    ransac = RANSACRegressor()
+    # ransac = RANSACRegressor()
+    ransac = HuberRegressor(fit_intercept=fit_intercept)
     ransac.fit(x, y)
 
     line_X = np.arange(x.min(), x.max())[:, np.newaxis]
     line_y_ransac = ransac.predict(line_X)
 
-    return line_X, line_y_ransac, ransac.estimator_.coef_, ransac.estimator_.intercept_, ransac.score(x, y)
+    return line_X, line_y_ransac, ransac.coef_, ransac.intercept_, ransac.score(x, y)
 
 
 def plot_linear_fit(x, y, fit_intercept=True):
@@ -87,26 +99,15 @@ def plot_linear_fit(x, y, fit_intercept=True):
     return line_X, line_y, reg.coef_, reg.intercept_, reg.score(x, y)  
 
 
-def calibrate_branch_trait_from_other_excel(sensor_measurement_df, field_measurement_df):
-
-    tmp_df = sensor_measurement_df.loc[~sensor_measurement_df['Label'].isnull(), :]
-    valid_sensor_measurement_df = tmp_df.copy()
-    valid_sensor_measurement_df['Section_Index'] = valid_sensor_measurement_df['Label'].apply(lambda x: int(x.split('_')[0][-1]))
-    valid_sensor_measurement_df['Color'] = valid_sensor_measurement_df['Label'].apply(lambda x: x.split('_')[1])
-    calibrated_sensor_measurement_df = calibrate_branch_trait(field_measurement_df, valid_sensor_measurement_df)
-    
-    return calibrated_sensor_measurement_df  
-
-
-def evaluation(sensor_measurement, x, y):
+def evaluation(sensor_measurement, x, y, fit_intercept=True):
     estimation = sensor_measurement[x]
     gt = sensor_measurement[y]
 
     mae = round(mean_absolute_error(gt, estimation), 2)
     mape = round(mean_absolute_percentage_error(gt, estimation), 2)
     rmse = round(mean_squared_error(gt, estimation, squared=False), 2)
-    lr_x, lr_y, lr_coef, lr_intercept, lr_score = plot_linear_fit(estimation, gt, fit_intercept=True)
-    ransac_lr_x, ransac_lr_y, coef, intercept, score = plot_best_ransac_fit(estimation, gt)
+    lr_x, lr_y, lr_coef, lr_intercept, lr_score = plot_linear_fit(estimation, gt, fit_intercept=fit_intercept)
+    ransac_lr_x, ransac_lr_y, coef, intercept, score = plot_best_ransac_fit(estimation, gt, fit_intercept=fit_intercept)
 
     return {
         'MAE': mae,
