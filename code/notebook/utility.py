@@ -3,12 +3,12 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 
-import seaborn as sns
 import statsmodels.api as sm
 
+from math import ceil, floor
+from scipy.stats import pearsonr
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 from sklearn.linear_model import RANSACRegressor, HuberRegressor, LinearRegression
-from scipy.stats import pearsonr
 
 
 def mean_absolute_percentage_error(y_true, y_pred): 
@@ -116,3 +116,28 @@ def evaluation(sensor_measurement, x, y, fit_intercept=True):
         'LR': [lr_x, lr_y, lr_coef, lr_intercept, lr_score],
         'RLR': [ransac_lr_x, ransac_lr_y, coef, intercept, score]
     }
+
+
+def plot_yx_line(df, x_axis, y_axis, ax, x_interval=5, y_interval=5):
+    axs_xticks = df[x_axis].tolist()
+    axs_yticks = df[y_axis].tolist()
+
+    axs_xticks_min = floor(min(axs_xticks))
+    axs_xticks_max = ceil(max(axs_xticks))
+    axs_yticks_min = floor(min(axs_yticks))
+    axs_yticks_max = ceil(max(axs_yticks))
+
+    left_end = min(axs_xticks_min, axs_yticks_min)
+    right_end = max(axs_xticks_max, axs_yticks_max)
+    xtick = list(range(left_end, right_end, x_interval))
+    ytick = list(range(left_end, right_end, y_interval))
+    
+    # set ticks and tick labels
+    ax.set_xticks(xtick)
+    ax.set_xticklabels(xtick)
+    ax.set_yticks(ytick)
+    ax.set_yticklabels(ytick)
+    
+    ref_line_limit = [left_end, right_end]
+    x = np.arange(ref_line_limit[0], ref_line_limit[1])
+    ax.plot(x, x, color='black', linewidth=3, linestyle='dashed')
