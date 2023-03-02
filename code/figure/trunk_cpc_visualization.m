@@ -4,15 +4,10 @@ path('utility', path);
 path('plot', path);
 path('refinement', path);
 
-data_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data'; % folder storing original point cloud
-skel_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\segmentation'; % folder storing extracted skeleton
-exp_id = 'multiplier_by_3_cpc_sphere_radius_002';
-extension = '.ply';
+skel_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\row13\segmentation'; % folder storing extracted skeleton
+exp_id = 'hc_downsample_iter_7\s1';
 
-files = dir(fullfile(data_folder, ['tree*' extension]));
-
-file = files(3).name;
-[filepath, tree_id, ext] = fileparts(file);
+tree_id = 'tree4';
 skel_filename_format = '_contract_*_skeleton.mat';
 skel_filename = search_skeleton_file(tree_id, fullfile(skel_folder, exp_id), skel_filename_format);
 
@@ -77,6 +72,8 @@ for i = 1:length(P.coarse_main_trunk_pts_index)
             index = (neighboring_pc.Location(:, 3) >= start) & (neighboring_pc.Location(:, 3) <= start + maximum_length);
             in_between_pts = neighboring_pc.Location(index, :);
 %             scatter3(in_between_pts(:, 1), in_between_pts(:, 2), in_between_pts(:, 3), 100, colors(rem(color_counter, length(colors)) + 1, :), 'filled', 'o', 'MarkerFaceAlpha', 0.5); hold on
+%             pcshow(neighboring_pc, 'MarkerSize', 20); hold on
+%             set(gcf, 'Color', 'white'); set(gca, 'Color', 'white', 'XColor', 'black', 'YColor', 'black', 'ZColor', 'black');
             color_counter = color_counter + 1;
 
             center = cpc_optimization(in_between_pts);
@@ -250,18 +247,21 @@ plot_by_weight(uniform_xyz, sampled_radius / xy_radius, false);
 xlabel(''); ylabel(''); zlabel(''); grid on; axis equal; 
 
 %%
-z_range = [0.5, 1]; 
+z_range = [-0.85, -0.7]; 
 tmp_index1 = findPointsInROI(P.trunk_pc, [P.trunk_pc.XLimits, P.trunk_pc.YLimits, z_range]);
 top_trunk_pc = select(P.trunk_pc, tmp_index1);
 
 tmp_index2 = find((ransac_inlier_spls(:, 3) > z_range(1)) & (ransac_inlier_spls(:, 3) < z_range(2)));
+top_ransac_inlier_spls = ransac_inlier_spls(tmp_index2, :);
 
 tmp_index3 = find((ransac_outlier_spls(:, 3) > z_range(1)) & (ransac_outlier_spls(:, 3) < z_range(2)));
 top_outlier_pts = ransac_outlier_spls(tmp_index3, :);
 
 tmp_index4 = find((uniform_xyz(:, 3) > z_range(1)) & (uniform_xyz(:, 3) < z_range(2)));
+top_uniform_xyz = uniform_xyz(tmp_index4, :);
 
 tmp_index5 = find((optimized_spls(:, 3) > z_range(1)) & (optimized_spls(:, 3) < z_range(2)));
+top_optimized_spls = optimized_spls(tmp_index5, :);
 
 tmp_index6 = find((optimized_outlier_spls(:, 3) > z_range(1)) & (optimized_outlier_spls(:, 3) < z_range(2)));
 top_optimized_outlier_pts = optimized_outlier_spls(tmp_index6, :);
@@ -270,21 +270,26 @@ figure('Name', 'Zoom-in RANSACed trunk skeleton')
 ax1 = subplot(1, 3, 1);
 pcshow(top_trunk_pc, 'MarkerSize', 5); hold on
 set(gcf, 'color', 'white'); set(gca, 'color', 'white', 'XColor', 'black', 'YColor', 'black', 'ZColor', 'black');
-plot_by_weight(optimized_spls, optimized_radius / xy_radius, false, tmp_index5); hold on
-scatter3(top_optimized_outlier_pts(:, 1), top_optimized_outlier_pts(:, 2), top_optimized_outlier_pts(:, 3), 200, OUTLIER_COLOR, 'filled', 'o', 'MarkerEdgeColor', OUTLIER_COLOR);
+% plot_by_weight(optimized_spls, optimized_radius / xy_radius, false, tmp_index5); hold on
+% scatter3(top_optimized_outlier_pts(:, 1), top_optimized_outlier_pts(:, 2), top_optimized_outlier_pts(:, 3), 200, OUTLIER_COLOR, 'filled', 'o', 'MarkerEdgeColor', OUTLIER_COLOR);
+plot3(top_optimized_spls(:, 1), top_optimized_spls(:, 2), top_optimized_spls(:, 3), '.b', 'MarkerSize', 50);
+plot3(top_optimized_outlier_pts(:, 1), top_optimized_outlier_pts(:, 2), top_optimized_outlier_pts(:, 3), '.r', 'MarkerSize', 50);
 xlabel(''); ylabel(''); zlabel(''); grid on; axis equal; 
 
 ax2 = subplot(1, 3, 2);
 pcshow(top_trunk_pc, 'MarkerSize', 5); hold on
 set(gcf, 'color', 'white'); set(gca, 'color', 'white', 'XColor', 'black', 'YColor', 'black', 'ZColor', 'black');
-plot_by_weight(ransac_inlier_spls, ransac_inlier_radius / xy_radius, false, tmp_index2); hold on
-scatter3(top_outlier_pts(:, 1), top_outlier_pts(:, 2), top_outlier_pts(:, 3), 200, OUTLIER_COLOR, 'filled', 'o', 'MarkerEdgeColor', OUTLIER_COLOR);
+plot3(top_ransac_inlier_spls(:, 1), top_ransac_inlier_spls(:, 2), top_ransac_inlier_spls(:, 3), '.b', 'MarkerSize', 50);
+plot3(top_outlier_pts(:, 1), top_outlier_pts(:, 2), top_outlier_pts(:, 3), '.r', 'MarkerSize', 50);
+% plot_by_weight(ransac_inlier_spls, ransac_inlier_radius / xy_radius, false, tmp_index2); hold on
+% scatter3(top_outlier_pts(:, 1), top_outlier_pts(:, 2), top_outlier_pts(:, 3), 200, OUTLIER_COLOR, 'filled', 'o', 'MarkerEdgeColor', OUTLIER_COLOR);
 xlabel(''); ylabel(''); zlabel(''); grid on; axis equal; 
 
 ax3 = subplot(1, 3, 3);
 pcshow(top_trunk_pc, 'MarkerSize', 5); hold on
 set(gcf, 'color', 'white'); set(gca, 'color', 'white', 'XColor', 'black', 'YColor', 'black', 'ZColor', 'black');
-plot_by_weight(uniform_xyz, sampled_radius / xy_radius, false, tmp_index4);
+% plot_by_weight(uniform_xyz, sampled_radius / xy_radius, false, tmp_index4);
+plot3(top_uniform_xyz(:, 1), top_uniform_xyz(:, 2), top_uniform_xyz(:, 3), '.b', 'MarkerSize', 50);
 xlabel(''); ylabel(''); zlabel(''); grid on; axis equal; 
 
 Link = linkprop([ax1, ax2, ax3], {'CameraUpVector', 'CameraPosition', 'CameraTarget', 'XLim', 'YLim', 'ZLim'});

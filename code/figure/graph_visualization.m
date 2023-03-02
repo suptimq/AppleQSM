@@ -4,16 +4,11 @@ path('utility', path);
 path('plot', path);
 path('refinement', path);
 
-data_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data'; % folder storing original point cloud
-skel_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\segmentation'; % folder storing extracted skeleton
-exp_id = 'multiplier_by_3_cpc_sphere_radius_002';
+skel_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\row13\segmentation'; % folder storing extracted skeleton
+exp_id = 'hc_downsample_iter_7\s1';
 compare_exp_id = 'plain_mst';
-extension = '.ply';
 
-files = dir(fullfile(data_folder, ['tree*' extension]));
-
-file = files(3).name;
-[filepath, tree_id, ext] = fileparts(file);
+tree_id = 'tree3';
 skel_filename_format = '_contract_*_skeleton.mat';
 skel_filename = search_skeleton_file(tree_id, fullfile(skel_folder, exp_id), skel_filename_format);
 
@@ -31,6 +26,7 @@ desired_pt = 30000;
 ratio = desired_pt / original_pt_normalized.Count;
 pt = pcdownsample(original_pt_normalized, 'random', ratio); % visualization purpose only!
 
+%%
 figure('Name', 'Tree');
 ax1 = subplot(1, 3, 1);
 % pcshow(pt, 'MarkerSize', 30); hold on

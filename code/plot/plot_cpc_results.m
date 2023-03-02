@@ -1,10 +1,9 @@
 clc; clear; close all;
 path('..', path)
 
-data_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data'; % folder storing original point cloud
-skel_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\row13\segmentation\hc_downsample_iter_7\s1_cpc_0.01'; % folder storing extracted skeleton
+skel_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\row13\segmentation\hc_downsample_iter_7\s1'; % folder storing extracted skeleton
 
-tree_id = 'tree1';
+tree_id = 'tree2';
 skel_filename_format = '_contract_*_skeleton.mat';
 skel_filename = search_skeleton_file(tree_id, skel_folder, skel_filename_format);
 
