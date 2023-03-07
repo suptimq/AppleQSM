@@ -46,6 +46,7 @@ function branch_trait(skel_folder, tree_id, exp_id, excel_filename, options)
     branch_angle_list = [];
     branch_diameter_list = [];
     branch_pts_cell = {};
+    branch_pts_radius_cell = {};
 
     for i = 1:branch_counter
         primary_branch_pts_size = P.primary_center_size(i);
@@ -71,6 +72,9 @@ function branch_trait(skel_folder, tree_id, exp_id, excel_filename, options)
         kdtree = KDTreeSearcher(primary_branch_pts);
         [spline_nn_index, ~] = knnsearch(kdtree, primary_spline_pts, 'K', 3);
         primary_spline_pts_radius = median(primary_branch_pts_radius(spline_nn_index), 2, 'omitnan');
+        primary_spline_pts_radius = fillmissing(primary_spline_pts_radius, 'linear');
+
+        assert(~any(isnan(primary_spline_pts_radius)), 'Found NaN')
 
         % fit trunk vector - only use trunk points that are close to the
         % internode
@@ -104,6 +108,7 @@ function branch_trait(skel_folder, tree_id, exp_id, excel_filename, options)
             branch_angle_list = [branch_angle_list, vertical_angle];
             branch_diameter_list = [branch_diameter_list, radius];
             branch_pts_cell{i} = primary_spline_pts;
+            branch_pts_radius_cell{i} = primary_spline_pts_radius;
         end
 
         if SHOW_BRANCH
@@ -161,6 +166,7 @@ function branch_trait(skel_folder, tree_id, exp_id, excel_filename, options)
         P.branch_diameter = branch_diameter_list;
         P.branch_angle = branch_angle_list;
         P.branch_pts_list = branch_pts_cell;
+        P.branch_pts_radius_list = branch_pts_radius_cell;
         save(fullfile(cad_save_folder, skel_filename), 'P');
     end
 
