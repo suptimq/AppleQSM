@@ -3,7 +3,7 @@ path('..', path)
 
 skel_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\row13\segmentation\hc_downsample_iter_7\s1'; % folder storing extracted skeleton
 
-tree_id = 'tree2';
+tree_id = 'tree1';
 skel_filename_format = '_contract_*_skeleton.mat';
 skel_filename = search_skeleton_file(tree_id, skel_folder, skel_filename_format);
 
@@ -46,3 +46,42 @@ figure('Name', 'Optimized branch skeleton pts w/ weight')
 pcshow(P.branch_pc, 'Markersize', 30); hold on
 plot_by_weight(valid_centers, valid_radii / P.trunk_radius);
 xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); axis equal; grid on;
+
+%%
+start = 0;
+spline_start = 0;
+figure('Name', 'Colored branches')
+pcshow(P.original_pt, 'MarkerSize', 30); hold on
+colors = {'red', 'blue', 'yellow', 'green', 'cyan', 'magenta', 'white'};
+color_code = {[1, 0, 0], [0, 0, 1], [1, 1, 0], [0, 1, 0], [0, 1, 1], [1, 0, 1], [1, 1, 1]};
+
+new_branch_location = [];
+new_branch_color = [];
+
+for i = 1:P.branch_counter
+    primary_branch_pts_size = P.primary_center_size(i);
+    index = start + 1:start + primary_branch_pts_size;
+    primary_branch_pts = P.primary_branch_center(index, :);
+
+    primary_spline_pts_size = P.primary_spline_size(i);
+    index = spline_start + 1:spline_start + primary_spline_pts_size;
+    primary_spline_pts = P.primary_spline_center(index, :);
+    
+    ci = rem(i, length(colors)) + 1;
+    new_branch_location = [new_branch_location; primary_branch_pts];
+    new_branch_color = [new_branch_color; repmat(color_code{ci}*255, size(primary_branch_pts, 1), 1)];
+
+    plot3(primary_branch_pts(:, 1), primary_branch_pts(:, 2), primary_branch_pts(:, 3), '.', 'Color', colors{ci}, 'MarkerSize', 20);
+
+    start = start + primary_branch_pts_size;
+    spline_start = spline_start + primary_spline_pts_size;
+end
+
+colored_branch_pc = pointCloud(new_branch_location, 'Color', new_branch_color);
+figure('Name', 'Validation');
+pcshow(P.original_pt, 'MarkerSize', 30); hold on
+pcshow(colored_branch_pc, 'MarkerSize', 200);
+axis off;
+
+% filepath = ['D:\Data\colored_branch_' tree_id];
+% pcwrite(colored_branch_pc, filepath, PLYFormat='binary');
