@@ -1,6 +1,9 @@
 function xyz = downsample(CoordinateAndDistance, b, subsample_num, P, pc)
-    Color = pc.Color;
     count = pc.Count;
+    Color = pc.Color;
+    if isempty(Color)
+        Color = zeros(count, 3);
+    end
     Limits = [pc.XLimits, pc.YLimits, pc.ZLimits];
     num = fix(2 ^ (3 * P) / b) + 1;
     bin = cell(num, 2);

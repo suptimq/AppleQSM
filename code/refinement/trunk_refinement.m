@@ -63,7 +63,7 @@ function [cpc_optimzed_center, cpc_optimized_radius, cpc_optimized_confidence, t
             residual_threshold = maximum_length;
             max_trials = 1e3;
 
-            if size(tmp_center, 1) > min_samples
+            if size(tmp_center, 1) > min_samples * 2
                 [~, segment_inliers, ~] = ransac_py(tmp_center, '3D_Line', min_samples, residual_threshold, max_trials);
             else
                 segment_inliers = ones(size(tmp_center, 1), 1);

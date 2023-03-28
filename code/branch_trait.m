@@ -74,6 +74,13 @@ function branch_trait(skel_folder, tree_id, exp_id, excel_filename, options)
         primary_spline_pts_radius = median(primary_branch_pts_radius(spline_nn_index), 2, 'omitnan');
         primary_spline_pts_radius = fillmissing(primary_spline_pts_radius, 'linear');
 
+        if all(isnan(primary_branch_pts_radius))
+            disp(['===================SKIP BRNACH ' num2str(i) 'Due to All NaN ==================='])
+            start = start + primary_branch_pts_size;
+            spline_start = spline_start + primary_spline_pts_size;
+            continue
+        end
+
         assert(~any(isnan(primary_spline_pts_radius)), 'Found NaN')
 
         % fit trunk vector - only use trunk points that are close to the
@@ -107,8 +114,8 @@ function branch_trait(skel_folder, tree_id, exp_id, excel_filename, options)
             branch_internode_ratio = [branch_internode_ratio, ratio_distance];
             branch_angle_list = [branch_angle_list, vertical_angle];
             branch_diameter_list = [branch_diameter_list, radius];
-            branch_pts_cell{i} = primary_spline_pts;
-            branch_pts_radius_cell{i} = primary_spline_pts_radius;
+            branch_pts_cell{end+1} = primary_spline_pts;
+            branch_pts_radius_cell{end+1} = primary_spline_pts_radius;
         end
 
         if SHOW_BRANCH

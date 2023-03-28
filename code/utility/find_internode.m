@@ -22,7 +22,7 @@ function [sorted_sliced_main_trunk_pts, row, col] = find_internode(branch_pts, r
         zmin = min(branch_pts(index, 3));
         trunk_internode = sliced_main_trunk_pts(row, :);
         
-        while row > 0 && trunk_internode(3) > zmin + 0.01
+        while row > 1 && trunk_internode(3) > zmin + 0.01
             row = row - 1;
             trunk_internode = sliced_main_trunk_pts(row, :);
         end
