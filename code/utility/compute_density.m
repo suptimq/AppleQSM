@@ -1,5 +1,8 @@
 function density = compute_density(npts, pts)
     num = round(npts * 0.012);
+    if num == 0
+        num = round(npts / 2);
+    end
     kdtree = KDTreeSearcher(pts);
     [index, distance_] = knnsearch(kdtree, pts, 'K', num);
 

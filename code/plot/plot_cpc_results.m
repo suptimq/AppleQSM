@@ -3,7 +3,7 @@ path('..', path)
 
 skel_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\row13\segmentation\hc_downsample_iter_7\s1'; % folder storing extracted skeleton
 
-tree_id = 'tree1';
+tree_id = 'tree2';
 skel_filename_format = '_contract_*_skeleton.mat';
 skel_filename = search_skeleton_file(tree_id, skel_folder, skel_filename_format);
 
@@ -68,10 +68,10 @@ for i = 1:P.branch_counter
     primary_spline_pts = P.primary_spline_center(index, :);
     
     ci = rem(i, length(colors)) + 1;
-    new_branch_location = [new_branch_location; primary_branch_pts];
-    new_branch_color = [new_branch_color; repmat(color_code{ci}*255, size(primary_branch_pts, 1), 1)];
+    new_branch_location = [new_branch_location; primary_spline_pts];
+    new_branch_color = [new_branch_color; repmat(color_code{ci}*255, size(primary_spline_pts, 1), 1)];
 
-    plot3(primary_branch_pts(:, 1), primary_branch_pts(:, 2), primary_branch_pts(:, 3), '.', 'Color', colors{ci}, 'MarkerSize', 20);
+    plot3(primary_spline_pts(:, 1), primary_spline_pts(:, 2), primary_spline_pts(:, 3), '.', 'Color', colors{ci}, 'MarkerSize', 20);
 
     start = start + primary_branch_pts_size;
     spline_start = spline_start + primary_spline_pts_size;
