@@ -98,6 +98,15 @@ Segment individual branch in a similar way to the trunk segmentation.
   - **trunk slice range**
 - Primary branch detection
 
+### Branch Post-Processing
+
+A projection distance check is applied on all segmented branches to remove fake branch origin clusters.
+
+- Projection distance threshold
+  - **line_distance_threshold**
+- Point distance threshold
+  - **point_distance_threshold**
+
 ### Angle Descriptor
 
 Produce a trunk angle descriptor, a branch vertical angle descriptor, and a branch horizontal angle descriptor. The branch vertical angle descriptor is the vertical angle between the 1st segment of the branch and the sliced trunk, whereas the branch horizontal angle descriptor is the horizontal angle between the 1st segment of the branch and the planting line.
