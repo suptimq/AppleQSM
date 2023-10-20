@@ -4,7 +4,7 @@ path('utility', path);
 path('plot', path);
 path('refinement', path);
 
-skel_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\row15\segmentation'; % folder storing extracted skeleton
+skel_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\apple_KNX_03182022\segmentation'; % folder storing extracted skeleton
 exp_id = 'hc_downsample_iter_7';
 extension = '.mat';
 

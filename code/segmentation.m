@@ -431,7 +431,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
 
     %% DBSCAN clustering
     noise_label = -1;
-    eps = load_parameters(paras, 'branch_seg_dbscan_eps', P.sample_radius * 1.5);
+    eps = load_parameters(paras, 'branch_seg_dbscan_eps', P.sample_radius * 3);
     min_samples = load_parameters(paras, 'branch_seg_dbscan_min_samples', 3);
     cluster_label = dbscan(crotch_pts, eps, min_samples);
     noise_pts = crotch_pts(cluster_label == noise_label, :);
@@ -492,7 +492,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     %% 2. calculate the closest distance
     %%----------------------------------------------------------%%
     cluster_counter = 0;
-    line_distance_threshold = 0.06;
+    line_distance_threshold = 0.08;
     internode_index_cell = {};
     cluster_pts_cell = {};
     internode_point_distance = [];
@@ -527,7 +527,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
 
     mean_internode_point_distance = mean(internode_point_distance);
     std_internode_point_distance = std(internode_point_distance);
-    point_distance_threshold = mean_internode_point_distance + 3.5 * std_internode_point_distance;
+    point_distance_threshold = mean_internode_point_distance + 15 * std_internode_point_distance;
 
     for i = 1:length(unique_cluster_label)
 
@@ -941,6 +941,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
         for k = 1:size(branch_pts, 1)
             cur_branch_pts = branch_pts(k, :);
             [~, tmp] = ismember(cur_branch_pts, rest_pts, 'row'); % index in terms of rest_pts (which MST built upon)
+            
             [node, distance] = shortestpath(MST, string(branch_internode_index_in_rest_pts), string(tmp));
 
             if isempty(node)
