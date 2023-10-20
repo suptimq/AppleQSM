@@ -1,4 +1,4 @@
-function branch_trait(skel_folder, tree_id, exp_id, excel_filename, options)
+function T = branch_trait(skel_folder, tree_id, exp_id, excel_filename, options)
 
     SHOW = options.SHOW;
     SHOW_BRANCH = options.SHOW_BRANCH;
@@ -40,6 +40,7 @@ function branch_trait(skel_folder, tree_id, exp_id, excel_filename, options)
     end
 
     trunk_skeleton_pts = P.trunk_cpc_optimized_center;
+    trunk_skeleton_pts_root_z = min(trunk_skeleton_pts(:, 3));
     trunk_internode_ratio = P.trunk_internode_distance_ratio;
 
     branch_internode_ratio = [];
@@ -59,6 +60,9 @@ function branch_trait(skel_folder, tree_id, exp_id, excel_filename, options)
         [sliced_main_trunk_pts, row, col] = find_internode(double(primary_branch_pts), double(trunk_skeleton_pts), 0.2);
         trunk_internode = sliced_main_trunk_pts(row, :);
         branch_internode = primary_branch_pts(col, :);
+        branch_internode_height = branch_internode(3) - trunk_skeleton_pts_root_z;
+        primary_branch_pts_distance = sqrt(sum(diff(primary_branch_pts).^2, 2));
+        primary_branch_length = cumsum(primary_branch_pts_distance);
 
         [~, index] = ismember(trunk_internode, trunk_skeleton_pts, 'row');
         ratio_distance = trunk_internode_ratio(index);
@@ -161,7 +165,7 @@ function branch_trait(skel_folder, tree_id, exp_id, excel_filename, options)
         end
 
         if SAVE
-            T = [T; {tree_id, num2str(i), num2str(vertical_angle, '%.2f'), num2str(radius, '%.2f')}];
+            T = [T; {tree_id, num2str(i), num2str(vertical_angle, '%.2f'), num2str(radius, '%.2f'), num2str(branch_internode_height*100, '%.2f'), num2str(primary_branch_length(end)*100, '%.2f')}];
         end
 
         start = start + primary_branch_pts_size;
@@ -178,7 +182,7 @@ function branch_trait(skel_folder, tree_id, exp_id, excel_filename, options)
     end
 
     if SAVE
-        T.Properties.VariableNames = {'Filename', 'Branch ID', 'Vertical_Croth_Angle-Degree', 'Primary_Branch_Radius-mm'};
+        T.Properties.VariableNames = {'Filename', 'Branch ID', 'Vertical_Croth_Angle-Degree', 'Primary_Branch_Radius-mm', 'Branch_Height-cm', 'Branch_Length-cm'};
         branch_excel_filepath = fullfile(output_folder, [tree_id excel_filename]);
         writetable(T, branch_excel_filepath, 'Sheet', 'Branch_Level_Traits_1')
     end

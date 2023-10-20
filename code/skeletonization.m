@@ -13,15 +13,15 @@ options.density_mode = 2; % 1-Hilbert Curve, 2-KNN
 options.gridStep = 0.0048;
 options.USING_POINT_RING = GS.USING_POINT_RING;
 
-extension = '.ply';
-data_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\row13'; % folder storing original point cloud
-skel_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\row13\skeleton'; % folder storing extracted skeleton
+extension = '.pcd';
+data_folder = 'E:\Data\FLIP\apple_LLC_02022022\exp1_12M\Individual_Tree\Tree'; % folder storing original point cloud
+skel_folder = 'E:\Data\FLIP\apple_LLC_02022022\exp1_12M\Individual_Tree\Tree\Skeleton'; % folder storing extracted skeleton
 exp_id = 'hc_downsample_iter_7';
 
 files = dir([data_folder '\' '*' extension]);
 files = natsortfiles(files);
 
-for i = 1:length(files)-1
+for i = 1
     filename = files(i).name;
     filepath = files(i).folder;
     disp(['=========Tree ' num2str(filename) ' ========='])
@@ -47,6 +47,7 @@ function [] = skeleton(data_folder, skel_folder, exp_id, filename_, options)
     original_pt_location_normalized = original_pt_location - mean(original_pt_location, 1);
     original_pt_normalized = pointCloud(original_pt_location_normalized, 'Color', original_pt.Color);
     P.original_pt = original_pt_normalized;
+    P.original_pt_norm = mean(original_pt_location, 1);
     fprintf('number of points for original dataset: %d pts\n', original_pt_normalized.Count);
 
     P.subsample_num = options.subsample_num;
