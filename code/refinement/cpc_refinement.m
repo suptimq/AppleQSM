@@ -1,10 +1,14 @@
-function [ori_cpc_optimized_center, ori_cpc_optimized_radius, ori_cpc_optimized_confidence, ori_cpc_optimized_center_outlier, branch_surface_pc] = cpc_refinement(P, i, kdtree, r, maximum_length)
+function [ori_cpc_optimized_center, ori_cpc_optimized_radius, ori_cpc_optimized_confidence, ori_cpc_optimized_center_outlier, branch_surface_pc] = cpc_refinement(P, i, kdtree, options)
     %% CPC optimization
     %  The assumption for trunk and branch pts is different
     %  For trunk, the initial skeleton pts are always inside the cylinder so it can directly use to retrieve pts
     %  For branch, the initial skelton pts might be outside the cylinder so it has to get the original pts retrieved
 
     DEBUG = false;
+
+    r = options.sphere_radius; % 0.01
+    maximum_length = options.maximum_length; % 0.002
+    cpc_num_points_threshold = options.cpc_num_points_threshold;
 
     ori_cpc_optimized_center = [];
     ori_cpc_optimized_radius = [];
@@ -65,7 +69,7 @@ function [ori_cpc_optimized_center, ori_cpc_optimized_radius, ori_cpc_optimized_
 
             %% CPC optimization to optimize cylinder center
             % divide the center to small segments
-            [cpc_optimized_radius, cpc_optimized_center, cpc_optimized_confidence, segment_inliers] = segment_and_cpc(tf_surface_pts, grow_info);
+            [cpc_optimized_radius, cpc_optimized_center, cpc_optimized_confidence, segment_inliers] = segment_and_cpc(tf_surface_pts, grow_info, cpc_num_points_threshold);
 
             if ~isempty(cpc_optimized_center)
 

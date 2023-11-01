@@ -7,9 +7,6 @@ function CPC = branch_refinement(P, kdtree, branch_pts_idx, options)
     CPC.cpc_optimized_radius = [];
     CPC.cpc_optimized_confidence = [];
 
-    sphere_radius = options.sphere_radius; % 0.01
-    maximum_length = options.maximum_length; % 0.002
-
     branch_pc = [];
     optimized_spls = [];
     optimized_spls_median = [];
@@ -20,7 +17,7 @@ function CPC = branch_refinement(P, kdtree, branch_pts_idx, options)
 
     for i = 1:length(branch_pts_idx)
 
-        [cpc_optimized_center, cpc_optimized_radius, cpc_optimized_confidence, cpc_optimized_center_outlier, branch_seg_pc] = cpc_refinement(P, branch_pts_idx(i), kdtree, sphere_radius, maximum_length);
+        [cpc_optimized_center, cpc_optimized_radius, cpc_optimized_confidence, cpc_optimized_center_outlier, branch_seg_pc] = cpc_refinement(P, branch_pts_idx(i), kdtree, options);
 
         cpc_optimized_center_median = median(cpc_optimized_center, 1);
 

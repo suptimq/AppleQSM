@@ -16,12 +16,12 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     skel_filename = search_skeleton_file(tree_id, fullfile(skel_folder, exp_id), skel_filename_format);
     paras_filename = [exp_id '_parameters.mat'];
 
-    branch_folder = fullfile(data_folder, [tree_id '_branch']);
+    branch_folder = fullfile('D:\Code\Apple_Crop_Potential_Prediction\data\row13', [tree_id '_branch']);
     files = dir(fullfile(branch_folder, 'Section*.ply'));
 
-    output_folder = fullfile(skel_folder, '..', 'segmentation', exp_id);
+    output_folder = fullfile(skel_folder, '..', 'Segmentation', exp_id);
     log_folder = fullfile(output_folder, 'log');
-    new_skel_folder = fullfile(skel_folder, '..', 'segmentation', exp_id);
+    new_skel_folder = fullfile(skel_folder, '..', 'Segmentation', exp_id);
     log_filepath = fullfile(log_folder, [tree_id '_log']);
     paras_filepath = fullfile(output_folder, paras_filename);
     paras = struct();
@@ -56,8 +56,12 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     original_pt_normalized = P.original_pt;
     original_pt_normalized_location = original_pt_normalized.Location;
     desired_pt = 30000;
-    ratio = desired_pt / original_pt_normalized.Count;
-    pt = pcdownsample(original_pt_normalized, 'random', ratio); % visualization purpose only!
+    if original_pt_normalized.Count > desired_pt
+        ratio = desired_pt / original_pt_normalized.Count;
+        pt = pcdownsample(original_pt_normalized, 'random', ratio); % visualization purpose only!
+    else
+        pt = original_pt_normalized;
+    end
 
     %% show skeleton connectivity
     figure('Name', 'Skeleton connectivity');
@@ -84,7 +88,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     %% create a graph with density as weights
     distance_th = load_parameters(paras, 'distance_th_lambda1', 0.1);
     mode = load_parameters(paras, 'entire_graph_refine_mode', 'distance');
-    coefficient_inv_density_weight = load_parameters(paras, 'graph_edge_coefficient_alpha1', 0.4);
+    coefficient_inv_density_weight = load_parameters(paras, 'graph_edge_coefficient_alpha1', 0.6);
     [adj_matrix, adj_idx, density_weight, inv_density_weight, distance_weight] = refine_adj_matrix(P.spls, P.spls_adj, P.spls_density, distance_th, mode);
     % normalize inv_density_weight and distance_weight to [0, 1]
     inv_weight_normalized = normalize(inv_density_weight, 'range');
@@ -453,7 +457,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     ax2 = subplot(1, 3, 2);
     plot3(refined_main_trunk_pts(:, 1), refined_main_trunk_pts(:, 2), refined_main_trunk_pts(:, 3), '.r', 'markersize', 30); hold on
     plot3(rest_pts(:, 1), rest_pts(:, 2), rest_pts(:, 3), '.', 'Color', PC_COLOR, 'Markersize', 30);
-    plot3(noise_pts(:, 1), noise_pts(:, 2), noise_pts(:, 3), '.r', 'markersize', 30);
+    plot3(noise_pts(:, 1), noise_pts(:, 2), noise_pts(:, 3), '.black', 'markersize', 30);
     plot3(crotch_pts(:, 1), crotch_pts(:, 2), crotch_pts(:, 3), '.b', 'markersize', 30);
     title('Crotch points w/ uniform trunk skeleton points', 'color', [1, 0, 0]);
     xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
@@ -1027,8 +1031,10 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
         % the ratio of sphere_radius/maximum_length is critical!
         % branch_refinement_options.sphere_radius = 0.02;
         % branch_refinement_options.maximum_length = 0.004;
+        % branch_refinement_options.cpc_num_points_threshold = 40;
         branch_refinement_options.sphere_radius = 0.02;
         branch_refinement_options.maximum_length = branch_refinement_options.sphere_radius / 5;
+        branch_refinement_options.cpc_num_points_threshold = 40;
 
         primary_branch_pc_list = [];
         primary_center = [];

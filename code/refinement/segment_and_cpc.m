@@ -1,4 +1,4 @@
-function [cpc_optimized_radius, cpc_optimized_center, cpc_optimized_confidence, segment_inliers] = segment_and_cpc(surface_pts, grow_info)
+function [cpc_optimized_radius, cpc_optimized_center, cpc_optimized_confidence, segment_inliers] = segment_and_cpc(surface_pts, grow_info, cpc_num_points_threshold)
     %% divide the entire branch into small segments and run segment-wise CPC
   
     start = grow_info.start;
@@ -17,7 +17,7 @@ function [cpc_optimized_radius, cpc_optimized_center, cpc_optimized_confidence, 
         index = (surface_pts(:, segment_dimension) >= start) & (surface_pts(:, segment_dimension) <= start + maximum_length);
         in_between_pts = surface_pts(index, :);
         if ~isempty(in_between_pts)
-            if size(in_between_pts, 1) > 40
+            if size(in_between_pts, 1) > cpc_num_points_threshold
                 center = cpc_optimization(in_between_pts);
                 radius = mean(pdist2(double(center), double(in_between_pts)));
                 cpc_optimized_radius = [cpc_optimized_radius, radius];
