@@ -38,8 +38,12 @@ function [ori_cpc_optimized_center, ori_cpc_optimized_radius, ori_cpc_optimized_
         unique_knn_index = unique(knn_index(:));
         branch_surface_pts = original_pt_normalized.Location(unique_knn_index, :);
         branch_surface_pts = [branch_surface_pts; neighboring_pc.Location];
-        branch_surface_pts_color = [original_pt_normalized.Color(unique_knn_index, :); neighboring_pc.Color];
-        branch_surface_pc = pointCloud(branch_surface_pts, 'Color', branch_surface_pts_color);
+        if ~isempty(original_pt_normalized.Color)
+            branch_surface_pts_color = [original_pt_normalized.Color(unique_knn_index, :); neighboring_pc.Color];
+            branch_surface_pc = pointCloud(branch_surface_pts, 'Color', branch_surface_pts_color);
+        else
+            branch_surface_pc = pointCloud(branch_surface_pts);
+        end
 
         % find branch grow information
         grow_info = find_grow_direction(branch_surface_pc, maximum_length);

@@ -99,7 +99,7 @@ function [cpc_optimzed_center, cpc_optimized_radius, cpc_optimized_confidence, t
             min_samples = 6;
         else
             index = start + 1:size(optimized_spls, 1);
-            min_samples = 3;
+            min_samples = 2;
         end
 
         % RANSAC parameters
