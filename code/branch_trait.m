@@ -77,8 +77,9 @@ function T = branch_trait(skel_folder, tree_id, exp_id, excel_filename, options)
         [spline_nn_index, ~] = knnsearch(kdtree, primary_spline_pts, 'K', 3);
         primary_spline_pts_radius = median(primary_branch_pts_radius(spline_nn_index), 2, 'omitnan');
         primary_spline_pts_radius = fillmissing(primary_spline_pts_radius, 'linear');
+%         primary_spline_pts_radius = primary_branch_pts_radius(~isnan(primary_branch_pts_radius));
 
-        if all(isnan(primary_branch_pts_radius))
+        if all(isnan(primary_branch_pts_radius)) || isempty(primary_spline_pts_radius)
             disp(['===================SKIP BRNACH ' num2str(i) 'Due to All NaN ==================='])
             start = start + primary_branch_pts_size;
             spline_start = spline_start + primary_spline_pts_size;
@@ -103,13 +104,14 @@ function T = branch_trait(skel_folder, tree_id, exp_id, excel_filename, options)
         [segment_vectors, vertical_angle, N] = find_branch_angle(trunk_internode, trunk_radius, v1, primary_spline_pts, N);
 
         % radius
+        s = 1;
         M = 4; % #skeleton points used in radius
         tmp_radius = primary_spline_pts_radius;
 
-        if length(tmp_radius) < M
+        if length(tmp_radius) < M+s
             index = 1:length(tmp_radius);
         else
-            index = 1:M;
+            index = s:M+s;
         end
 
         radius = median(tmp_radius(index), 'omitnan') * 1e3;
