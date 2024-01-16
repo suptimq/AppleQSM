@@ -4,9 +4,9 @@ path('utility', path);
 path('plot', path);
 path('refinement', path);
 
-data_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data'; % folder storing original point cloud
-skel_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\skeleton'; % folder storing extracted skeleton
-exp_id = 'baseline';
+data_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\row13'; % folder storing original point cloud
+skel_folder = 'D:\Code\Apple_Crop_Potential_Prediction\data\row13\segmentation'; % folder storing extracted skeleton
+exp_id = 'hc_downsample_iter_7\s1';
 extension = '.ply';
 
 files = dir(fullfile(data_folder, ['tree*' extension]));
@@ -26,17 +26,20 @@ desired_pt = 30000;
 ratio = desired_pt / original_pt_normalized.Count;
 pt = pcdownsample(original_pt_normalized, 'random', ratio); % visualization purpose only!
 
+%% original point cloud
 figure('Name', 'Input')
 pcshow(pt, 'MarkerSize', 20);
 set(gcf, 'color', 'white'); set(gca, 'color', 'white', 'XColor', 'black', 'YColor', 'black', 'ZColor', 'black');
-grid on; axis equal;
+grid on; axis equal; axis off;
 
+%% skeleton
 figure('Name', 'Skeleton')
 pcshow(pt, 'MarkerSize', 10); hold on
 set(gcf, 'color', 'white'); set(gca, 'color', 'white', 'XColor', 'black', 'YColor', 'black', 'ZColor', 'black');
 scatter3(P.spls(:, 1), P.spls(:, 2), P.spls(:, 3), 200, '.');
 grid on; axis equal;
 
+%% skeleton connectivity
 figure('Name', 'Skeleton connectivity')
 scatter3(P.spls(:, 1), P.spls(:, 2), P.spls(:, 3), 200, '.'); hold on
 plot_connectivity(P.spls, P.spls_adj, 2, [1, 0, 0]);
@@ -44,7 +47,7 @@ grid on; axis equal;
 
 refined_main_trunk_pts = P.trunk_cpc_optimized_center;
 
-
+%% structure segmentation
 figure('Name', 'Structure segmentation')
 plot3(refined_main_trunk_pts(:, 1), refined_main_trunk_pts(:, 2), refined_main_trunk_pts(:, 3), '.r', 'MarkerSize', 30); hold on
 start = 0;
@@ -56,14 +59,14 @@ for i = 1:length(P.primary_center_size)
     plot3(primary_branch_pts(:, 1), primary_branch_pts(:, 2), primary_branch_pts(:, 3), '.', 'Color', colors{rem(i, length(colors)) + 1}, 'MarkerSize', 30);
     start = start + primary_branch_pts_size;
 end
-grid on; axis equal;
+grid on; axis equal; axis off;
 
+%% refined main trunk
 figure('Name', 'Refined main trunk')
 pcshow(P.trunk_pc, 'MarkerSize', 20); hold on
 set(gcf, 'color', 'white'); set(gca, 'color', 'white', 'XColor', 'black', 'YColor', 'black', 'ZColor', 'black');
 plot3(refined_main_trunk_pts(:, 1), refined_main_trunk_pts(:, 2), refined_main_trunk_pts(:, 3), '.r', 'MarkerSize', 30);
 grid on; axis equal;
-
 
 xc = P.trunk_diameter_ellipse(1); yc = P.trunk_diameter_ellipse(2); radius_x = P.trunk_diameter_ellipse(3); radius_y = P.trunk_diameter_ellipse(4); theta = P.trunk_diameter_ellipse(5); trunk_radius = P.trunk_radius;
 figure('Name', 'Trunk diameter estimation')
