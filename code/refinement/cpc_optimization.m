@@ -8,7 +8,7 @@ function center = cpc_optimization(surface_pts, initial_skeleton_pts)
     surface_pts = double(surface_pts);
     initial_skeleton_pts = double(initial_skeleton_pts);
 
-    options = optimoptions('fminunc', 'StepTolerance', 1e-9, 'OptimalityTolerance', 1e-9, 'MaxIterations', 1);
+    options = optimoptions('fminunc', 'StepTolerance', 1e-9, 'OptimalityTolerance', 1e-9, 'MaxIterations', 1, 'Display', 'off');
     center = initial_skeleton_pts;
     counter = 1;
     prev_fval = 0;
@@ -21,7 +21,6 @@ function center = cpc_optimization(surface_pts, initial_skeleton_pts)
         f = @(vs)parameterfun(vs, surface_pts, lambda_s);
         [center, fval] = fminunc(f, center, options);                                   % optimization
         if abs(fval-prev_fval) < 1e-9                                                               % check break condition
-            disp('==================Find Minimum===================');
             break
         end
         prev_fval = fval;
