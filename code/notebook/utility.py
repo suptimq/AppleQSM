@@ -6,9 +6,9 @@ import matplotlib.pyplot as plt
 import statsmodels.api as sm
 
 from math import ceil, floor
-from scipy.stats import pearsonr
+from sklearn.metrics import r2_score
 from sklearn.metrics import mean_absolute_error, mean_squared_error
-from sklearn.linear_model import RANSACRegressor, HuberRegressor, LinearRegression
+from sklearn.linear_model import HuberRegressor, LinearRegression
 
 
 def mean_absolute_percentage_error(y_true, y_pred): 
@@ -82,7 +82,9 @@ def plot_best_ransac_fit(x, y, fit_intercept):
     line_X = np.arange(x.min(), x.max())[:, np.newaxis]
     line_y_ransac = ransac.predict(line_X)
 
-    return line_X, line_y_ransac, ransac.coef_, ransac.intercept_, ransac.score(x, y)
+    r2_ransac = r2_score(y, ransac.predict(x))
+
+    return line_X, line_y_ransac, ransac.coef_, ransac.intercept_, r2_ransac
 
 
 def plot_linear_fit(x, y, fit_intercept=True):
@@ -96,7 +98,9 @@ def plot_linear_fit(x, y, fit_intercept=True):
     line_X = np.arange(x.min(), x.max())[:, np.newaxis]
     line_y = reg.predict(line_X)
 
-    return line_X, line_y, reg.coef_, reg.intercept_, reg.score(x, y)  
+    r2_linear = r2_score(y, reg.predict(x))
+
+    return line_X, line_y, reg.coef_, reg.intercept_, r2_linear
 
 
 def evaluation(sensor_measurement, x, y, fit_intercept=True):
