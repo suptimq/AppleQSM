@@ -1,5 +1,4 @@
-function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
-
+function [primary_branch_counter] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
     % plot graph prior to MST
     DEBUG = options.DEBUG;
     % logging
@@ -382,9 +381,9 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
         setappdata(gcf, 'StoreTheLink', Link);
     end
 
-    if isfield(P, 'trunk_cpc_optimized_center')
-        refined_main_trunk_pts = P.trunk_cpc_optimized_center;
-    end
+%     if isfield(P, 'trunk_cpc_optimized_center')
+%         refined_main_trunk_pts = P.trunk_cpc_optimized_center;
+%     end
 
     distance_list = [];
 
@@ -531,7 +530,7 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
 
     mean_internode_point_distance = mean(internode_point_distance);
     std_internode_point_distance = std(internode_point_distance);
-    point_distance_threshold = mean_internode_point_distance + 3.5 * std_internode_point_distance;
+    point_distance_threshold = mean_internode_point_distance + 100 * std_internode_point_distance;
 
     for i = 1:length(unique_cluster_label)
 

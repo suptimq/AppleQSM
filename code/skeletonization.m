@@ -14,18 +14,29 @@ options.gridStep = 0.0048;
 options.USING_POINT_RING = GS.USING_POINT_RING;
 
 extension = '.pcd';
-data_folder = 'E:\Data\FLIP\apple_LLC_02022022\exp1_12M\Individual_Tree\Tree'; % folder storing original point cloud
-skel_folder = 'E:\Data\FLIP\apple_LLC_02022022\exp1_12M\Individual_Tree\Tree\Skeleton'; % folder storing extracted skeleton
+data_folder = 'E:\Result\LLC_02022022\Row13';
+models = {'Raw_Incomplete_Trees';
+                     'AdaPoinTr_FTB55-v2_CDL1_Finetune';
+                     'AdaPoinTr_LTB81-v4_CDL1_Finetune';
+                     'Generator2-AdaPoinTr-Skeleton-GAN_FTB55-v2_CDL1_SkelLoss-Supervised-0.01_Finetune';
+                     'Generator2-AdaPoinTr-Skeleton-GAN_LTB81-v4_CDL1_SkelLoss-Supervised-0.01_Finetune';};
+mode  = 'Primary';
 exp_id = 'hc_downsample_iter_7';
 
-files = dir([data_folder '\' '*' extension]);
-files = natsortfiles(files);
+for k = 1:length(models)
+    model = models{k};
+    tree_folder = fullfile(data_folder, model, mode);
+    skel_folder = fullfile(data_folder, model, mode, 'AppleQSM', 'Skeleton');
 
-for i = 1
-    filename = files(i).name;
-    filepath = files(i).folder;
-    disp(['=========Tree ' num2str(filename) ' ========='])
-    skeleton(filepath, skel_folder, exp_id, filename, options);
+    files = dir([tree_folder '\' '*' extension]);
+    files = natsortfiles(files);
+    
+    for i = 8
+        filename = files(i).name;
+        filepath = files(i).folder;
+        disp(['=========Tree ' num2str(filename) ' ========='])
+        skeleton(filepath, skel_folder, exp_id, filename, options);
+    end
 end
 
 function [] = skeleton(data_folder, skel_folder, exp_id, filename_, options)

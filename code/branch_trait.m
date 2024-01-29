@@ -7,9 +7,9 @@ function T = branch_trait(skel_folder, tree_id, exp_id, excel_filename, options)
     TO_FUSION = options.TO_FUSION;
 
     skel_filename_format = '_contract_*_skeleton.mat';
-    new_skel_folder = fullfile(skel_folder, '..', 'segmentation');
+    new_skel_folder = fullfile(skel_folder, '..', 'Segmentation');
     skel_filename = search_skeleton_file(tree_id, fullfile(new_skel_folder, exp_id), skel_filename_format);
-    output_folder = fullfile(skel_folder, '..', 'characterization', exp_id);
+    output_folder = fullfile(skel_folder, '..', 'Characterization', exp_id);
     cad_save_folder = fullfile(skel_folder, '..', 'Fusion', exp_id);
 
     %% create folder to save results
@@ -167,7 +167,7 @@ function T = branch_trait(skel_folder, tree_id, exp_id, excel_filename, options)
         end
 
         if SAVE
-            T = [T; {tree_id, num2str(i), num2str(vertical_angle, '%.2f'), num2str(radius, '%.2f'), num2str(branch_internode_height*100, '%.2f'), num2str(primary_branch_length(end)*100, '%.2f')}];
+            T = [T; {tree_id, num2str(i), num2str(vertical_angle, '%.2f'), num2str(radius*2, '%.2f'), num2str(branch_internode_height*100, '%.2f'), num2str(primary_branch_length(end)*100, '%.2f')}];
         end
 
         start = start + primary_branch_pts_size;
@@ -184,7 +184,7 @@ function T = branch_trait(skel_folder, tree_id, exp_id, excel_filename, options)
     end
 
     if SAVE
-        T.Properties.VariableNames = {'Filename', 'Branch ID', 'Vertical_Croth_Angle-Degree', 'Primary_Branch_Radius-mm', 'Branch_Height-cm', 'Branch_Length-cm'};
+        T.Properties.VariableNames = {'Filename', 'Branch ID', 'Vertical_Croth_Angle-Degree', 'Primary_Branch_Diameter-mm', 'Branch_Height-cm', 'Branch_Length-cm'};
         branch_excel_filepath = fullfile(output_folder, [tree_id excel_filename]);
         writetable(T, branch_excel_filepath, 'Sheet', 'Branch_Level_Traits_1')
     end
