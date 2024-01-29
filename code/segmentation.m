@@ -1127,33 +1127,47 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
         P.primary_spline_size = primary_spline_size;
         P.internode_list = internode_list;
 
-        P.side_branch_pc = pccat(side_branch_pc_list);
-        P.side_branch_center = side_center;
-        P.side_branch_radius = side_radius;
-        P.side_branch_confidence = side_confidence;
-        P.side_center_size = side_center_size;
+        % only side branches exist
+        if ~isempty(side_branch_pc_list)
+            P.side_branch_pc = pccat(side_branch_pc_list);
+            P.side_branch_center = side_center;
+            P.side_branch_radius = side_radius;
+            P.side_branch_confidence = side_confidence;
+            P.side_center_size = side_center_size;
+            P.branch_pc = pccat([P.primary_branch_pc, P.side_branch_pc]);
 
-        P.branch_pc = pccat([P.primary_branch_pc, P.side_branch_pc]);
+            % for plot
+            invalid_primary_branch_index = isnan(P.primary_branch_radius);
+            invalid_side_branch_index = isnan(P.side_branch_radius);
+            valid_centers = [P.primary_branch_center(~invalid_primary_branch_index, :); P.side_branch_center(~invalid_side_branch_index, :)];
+            valid_radii = [P.primary_branch_radius(~invalid_primary_branch_index); P.side_branch_radius(~invalid_side_branch_index)];
+            invalid_centers = [P.primary_branch_center(invalid_primary_branch_index, :); P.side_branch_center(invalid_side_branch_index, :)];
+            invalid_radii = [P.primary_branch_radius(invalid_primary_branch_index); P.side_branch_radius(invalid_side_branch_index)];
+
+        else
+            P.branch_pc = P.primary_branch_pc;
+
+            % for plot
+            invalid_primary_branch_index = isnan(P.primary_branch_radius);
+            valid_centers = P.primary_branch_center(~invalid_primary_branch_index, :);
+            valid_radii = P.primary_branch_radius(~invalid_primary_branch_index);
+            invalid_centers = P.primary_branch_center(invalid_primary_branch_index, :);
+            invalid_radii = P.primary_branch_radius(invalid_primary_branch_index);
+        end
+
         save(new_skel_filepath, 'P');
-
         disp(['sphere radius: ' num2str(branch_refinement_options.sphere_radius)]);
         disp(['maximum length: ' num2str(branch_refinement_options.maximum_length)]);
         disp(['M: ' num2str(M)]);
         disp('===================Finish Branch Refinement by CPC and Saved===================');
 
-        invalid_primary_branch_index = isnan(P.primary_branch_radius);
-        invalid_side_branch_index = isnan(P.side_branch_radius);
-        valid_centers = [P.primary_branch_center(~invalid_primary_branch_index, :); P.side_branch_center(~invalid_side_branch_index, :)];
-        valid_radii = [P.primary_branch_radius(~invalid_primary_branch_index); P.side_branch_radius(~invalid_side_branch_index)];
-
-        invalid_centers = [P.primary_branch_center(invalid_primary_branch_index, :); P.side_branch_center(invalid_side_branch_index, :)];
-        invalid_radii = [P.primary_branch_radius(invalid_primary_branch_index); P.side_branch_radius(invalid_side_branch_index)];
-
         figure('Name', 'Optimized branch skeleton pts')
         ax1 = subplot(1, 2, 1);
         pcshow(P.branch_pc, 'Markersize', 30); hold on
         plot3(P.primary_branch_center(:, 1), P.primary_branch_center(:, 2), P.primary_branch_center(:, 3), '.r', 'Markersize', 30)
-        plot3(P.side_branch_center(:, 1), P.side_branch_center(:, 2), P.side_branch_center(:, 3), '.b', 'Markersize', 30)
+        if ~isempty(side_branch_pc_list)
+            plot3(P.side_branch_center(:, 1), P.side_branch_center(:, 2), P.side_branch_center(:, 3), '.b', 'Markersize', 30)
+        end
         plot3(invalid_centers(:, 1), invalid_centers(:, 2), invalid_centers(:, 3), '.g', 'Markersize', 30)
         xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); axis equal; grid on;
 
@@ -1164,6 +1178,12 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
 
         Link = linkprop([ax1, ax2], {'CameraUpVector', 'CameraPosition', 'CameraTarget', 'XLim', 'YLim', 'ZLim'});
         setappdata(gcf, 'StoreTheLink', Link);
+
+        if SAVE_FIG
+            filename = fullfile(output_folder, [tree_id, '_cpc_skeleton']);
+            saveas(gcf, filename);
+        end
+
     end
 
     disp('================Segmention Done================');
@@ -1173,5 +1193,5 @@ function [] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
         movefile('logfile', log_filepath);
     end
 
-    clc; clear; close all;
+    close all;
 end
