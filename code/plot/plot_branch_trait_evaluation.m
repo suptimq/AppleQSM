@@ -1,14 +1,19 @@
 extension = '.mat';
 data_folder = 'E:\Result\LLC_02022022\Row13';
-models = {'Raw_Incomplete_Trees';
-                     'AdaPoinTr_FTB55-v2_CDL1_Finetune';
-                     'AdaPoinTr_LTB81-v4_CDL1_Finetune';
-                     'Generator2-AdaPoinTr-Skeleton-GAN_FTB55-v2_CDL1_SkelLoss-Supervised-0.01_Finetune'
-                     'Generator2-AdaPoinTr-Skeleton-GAN_LTB81-v4_CDL1_SkelLoss-Supervised-0.01_Finetune'};
+% models = {'Raw_Incomplete_Trees';
+%                      'AdaPoinTr_FTB55-v2_CDL1_Finetune';
+%                      'AdaPoinTr_LTB81-v4_CDL1_Finetune';
+%                      'Generator2-AdaPoinTr-Skeleton-GAN_FTB55-v2_CDL1_SkelLoss-Supervised-0.01_Finetune';
+%                      'Generator2-AdaPoinTr-Skeleton-GAN_LTB81-v4_CDL1_SkelLoss-Supervised-0.01_Finetune';
+%                      'Generator2-AdaPoinTr-Skeleton-GAN_LTB81-v4_CDL1_SkelLoss-Supervised-0.01_Repulsion_CPC-2nd-Stage_Finetune'};
+
+models = { 'AdaPoinTr_FTB55-v2_CDL1_Finetune';
+                    'Generator2-AdaPoinTr-Skeleton-GAN_FTB55-v2_CDL1_SkelLoss-Supervised-0.01_Finetune';};
+
 mode  = 'Primary';
 intercept = false;
 
-result_folder = fullfile(data_folder, 'AppleQSM');
+result_folder = fullfile(data_folder, 'AppleQSM2');
 
 % Initialize arrays to store R-squared values
 model_names = {};
@@ -65,7 +70,15 @@ end
 R2_table = table(model_names', diameter_linear_r2', diameter_robust_r2', angle_linear_r2', angle_robust_r2', ...
     'VariableNames', {'model_name', 'diameter_linear_R2', 'diameter_robust_R2', 'angle_linear_R2', 'angle_robust_R2'});
 
-% Save the table to a CSV file
-csv_filepath_output = fullfile(result_folder, 'R2_values.csv'); % Output CSV file path
-writetable(R2_table, csv_filepath_output);
-disp(['R-squared values saved to: ' csv_filepath_output]);
+%% Save the table to a CSV file
+csv_filepath_output = fullfile(result_folder, 'R2_values.csv');
+% Check if the file exists
+if exist(csv_filepath_output, 'file')
+    % If the file exists, append the data
+    writetable(R2_table, csv_filepath_output, 'WriteMode', 'append');
+    disp(['R-squared values appended to: ' csv_filepath_output]);
+else
+    % If the file does not exist, write the data to a new file
+    writetable(R2_table, csv_filepath_output);
+    disp(['R-squared values saved to: ' csv_filepath_output]);
+end

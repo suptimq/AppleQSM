@@ -6,15 +6,18 @@ path('refinement', path);
 
 extension = '.mat';
 data_folder = 'E:\Result\LLC_02022022\Row13';
-models = {'Raw_Incomplete_Trees';
-                     'AdaPoinTr_FTB55-v2_CDL1_Finetune';
-                     'AdaPoinTr_LTB81-v4_CDL1_Finetune';
-                     'Generator2-AdaPoinTr-Skeleton-GAN_FTB55-v2_CDL1_SkelLoss-Supervised-0.01_Finetune'
-                     'Generator2-AdaPoinTr-Skeleton-GAN_LTB81-v4_CDL1_SkelLoss-Supervised-0.01_Finetune'};
+% models = {'Raw_Incomplete_Trees';
+%                      'AdaPoinTr_FTB55-v2_CDL1_Finetune';
+%                      'AdaPoinTr_LTB81-v4_CDL1_Finetune';
+%                      'Generator2-AdaPoinTr-Skeleton-GAN_FTB55-v2_CDL1_SkelLoss-Supervised-0.01_Finetune';
+%                      'Generator2-AdaPoinTr-Skeleton-GAN_LTB81-v4_CDL1_SkelLoss-Supervised-0.01_Finetune';
+%                      'Generator2-AdaPoinTr-Skeleton-GAN_LTB81-v4_CDL1_SkelLoss-Supervised-0.01_Repulsion_CPC-2nd-Stage_Finetune'};
+models = { 'AdaPoinTr_FTB55-v2_CDL1_Finetune';
+                    'Generator2-AdaPoinTr-Skeleton-GAN_FTB55-v2_CDL1_SkelLoss-Supervised-0.01_Finetune';};
 mode  = 'Primary';
-exp_id = 'hc_downsample_iter_7';
+exp_id = '.';
 
-result_folder = fullfile(data_folder, 'AppleQSM');
+result_folder = fullfile(data_folder, 'AppleQSM2');
 if ~exist(result_folder, "dir")
     mkdir(result_folder);
 end
@@ -47,7 +50,7 @@ data = cell(numel(models), 10);
 for i = 1:length(models)
     model = models{i};
     tree_folder = fullfile(data_folder, model, mode);
-    skel_folder = fullfile(data_folder, model, mode, 'AppleQSM', 'Skeleton');
+    skel_folder = fullfile(data_folder, model, mode, 'AppleQSM2', 'Skeleton');
 
     files = dir(fullfile(skel_folder, exp_id, ['tree*' extension]));
     files = natsortfiles(files);
@@ -63,12 +66,23 @@ for i = 1:length(models)
             num_primary_branch = segmentation(data_folder, skel_folder, tree_id, exp_id, options);
             data{i, 1+k} = num_primary_branch;
         end
-
+    
+        %% Save the table to a CSV file
         % Create table
-        T = cell2table(data, 'VariableNames', {'model_name', 'tree1', 'tree2', 'tree3', 'tree4', 'tree5', 'tree6', 'tree7', 'tree8', 'tree9'});
-        % Save table to a CSV file
-        filename = fullfile(result_folder, 'Branch_Quantity.csv');  % Define filename
-%         writetable(T, filename);  % Write table to CSV file
+        T = cell2table(data, 'VariableNames', {'model_name', 'tree1', 'tree2', 'tree3', 'tree4', 'tree5', 'tree6', 'tree7', 'tree8', 'tree9'});    
+
+        csv_filepath_output = fullfile(result_folder, 'Branch_Quantity.csv');  % Define filename
+        % Check if the file exists
+        if exist(csv_filepath_output, 'file')
+            % If the file exists, append the data
+            writetable(T, csv_filepath_output, 'WriteMode', 'append');
+            disp(['Branch quantity appended to: ' csv_filepath_output]);
+        else
+            % If the file does not exist, write the data to a new file
+            writetable(T, csv_filepath_output);  % Write table to CSV file
+            disp(['Branch quantity saved to: ' csv_filepath_output]);
+        end
+
     end
     
     if options.CHAR_ON

@@ -15,23 +15,26 @@ options.USING_POINT_RING = GS.USING_POINT_RING;
 
 extension = '.pcd';
 data_folder = 'E:\Result\LLC_02022022\Row13';
-models = {'Raw_Incomplete_Trees';
-                     'AdaPoinTr_FTB55-v2_CDL1_Finetune';
-                     'AdaPoinTr_LTB81-v4_CDL1_Finetune';
-                     'Generator2-AdaPoinTr-Skeleton-GAN_FTB55-v2_CDL1_SkelLoss-Supervised-0.01_Finetune';
-                     'Generator2-AdaPoinTr-Skeleton-GAN_LTB81-v4_CDL1_SkelLoss-Supervised-0.01_Finetune';};
+% models = {'Raw_Incomplete_Trees';
+%                      'AdaPoinTr_FTB55-v2_CDL1_Finetune';
+%                      'AdaPoinTr_LTB81-v4_CDL1_Finetune';
+%                      'Generator2-AdaPoinTr-Skeleton-GAN_FTB55-v2_CDL1_SkelLoss-Supervised-0.01_Finetune';
+%                      'Generator2-AdaPoinTr-Skeleton-GAN_LTB81-v4_CDL1_SkelLoss-Supervised-0.01_Finetune';
+%                      'Generator2-AdaPoinTr-Skeleton-GAN_LTB81-v4_CDL1_SkelLoss-Supervised-0.01_Repulsion_CPC-2nd-Stage_Finetune'};
+models = { 'AdaPoinTr_FTB55-v2_CDL1_Finetune';
+                    'Generator2-AdaPoinTr-Skeleton-GAN_FTB55-v2_CDL1_SkelLoss-Supervised-0.01_Finetune';};
 mode  = 'Primary';
-exp_id = 'hc_downsample_iter_7';
+exp_id = '.';
 
 for k = 1:length(models)
     model = models{k};
     tree_folder = fullfile(data_folder, model, mode);
-    skel_folder = fullfile(data_folder, model, mode, 'AppleQSM', 'Skeleton');
+    skel_folder = fullfile(data_folder, model, mode, 'AppleQSM2', 'Skeleton');
 
     files = dir([tree_folder '\' '*' extension]);
     files = natsortfiles(files);
     
-    for i = 8
+    for i = 1:length(files)
         filename = files(i).name;
         filepath = files(i).folder;
         disp(['=========Tree ' num2str(filename) ' ========='])
