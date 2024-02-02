@@ -1,0 +1,124 @@
+experiment: {
+  models: [
+    'AdaPoinTr_FTB55-v2_CDL1_Finetune', 
+    'Generator2-AdaPoinTr-Skeleton-GAN_FTB55-v2_CDL1_SkelLoss-Supervised-0.01_Finetune'],
+  # models: ['Raw_Incomplete_Trees',
+  #         'AdaPoinTr_FTB55-v2_CDL1_Finetune',
+  #         'AdaPoinTr_LTB81-v4_CDL1_Finetune',
+  #         'Generator2-AdaPoinTr-Skeleton-GAN_FTB55-v2_CDL1_SkelLoss-Supervised-0.01_Finetune',
+  #         'Generator2-AdaPoinTr-Skeleton-GAN_LTB81-v4_CDL1_SkelLoss-Supervised-0.01_Finetune',
+  #         'Generator2-AdaPoinTr-Skeleton-GAN_LTB81-v4_CDL1_SkelLoss-Supervised-0.01_Repulsion_CPC-2nd-Stage_Finetune'],
+  mode: Primary,
+  num_tree: 9,
+  exp_name: ,
+  exp_folder: AppleQSM3,
+  data_folder: E:\Result\LLC_02022022\Row13,
+}
+
+skeleton: {
+  bin_size: 5,
+  num_iteration: 7,
+  downsample_num: 50000,
+  downsample_mode: 1,                 # 1-Hilbert Curve, 2-Random, 3-Grid
+  density_mode: 2,                    # 1-Hilbert Curve, 2-KNN
+  gridStep: 0.0048,                   # if use Grid subsampling
+  ### ====================================== ###
+  ###               Attention                ###
+  ### ====================================== ###
+  ### this factor is IMPORTANT
+  ### a large factor leads to sparse skeleton 
+  sample_radius_factor: 0.006,
+  extension: .pcd,
+}
+
+segmentation: {
+  extension: .mat,
+  reference_branch_folder: D:\Code\Apple_Crop_Potential_Prediction\data\row13,
+  trunk: {
+    distance_th_lambda1: 0.1,
+    entire_graph_refine_mode: distance,
+    ### ====================================== ###
+    ###               Attention                ###
+    ### ====================================== ###
+    ### this coefficient is IMPORTANT, balancing the thickness and distance
+    ### alpha1 is for BA MST and alpha2 is for trunk segmentation
+    graph_edge_coefficient_alpha1: 0.6,         
+    graph_edge_coefficient_alpha2: 0.4,
+    z_threshold: 10,
+    slice_range_z_axis: 0.05,
+    ransac_trunk_diameter_min_sample: 30,
+    ransac_trunk_diameter_threshold: 0.005,
+    ransac_trunk_diameter_trials: 100,
+    trunk_branch_seg_dbscan_eps_factor: 2,
+    # suggest to set them as default for TLS
+    refinement: {
+      z_radius: 0.02,
+      maximum_length: 0.005,
+      N: 10,
+      M: 100
+    },
+    # whether use refined trunk for branch clustering
+    # turn on this might reduce the branch count
+    use_refined_trunk: False
+  },
+  branch: {
+    ### ====================================== ###
+    ###               Attention                ###
+    ### ====================================== ###
+    ### this factor is IMPORTANT
+    ### a large factor leads to complex branch root clustering 
+    sphere_radius_factor: 6,
+    branch_seg_dbscan_eps_factor: 1.5,
+    branch_seg_dbscan_min_samples: 3,
+    post_process_cluster: {
+      line_distance_threshold: 0.06,
+      # the larger number is the looser the constraint is
+      point_distance_threshold_factor: 100,
+      # might need to reduce the min_sample to 2 if points are very sparse
+      ransac_min_sample: 3,
+      ransac_threshold: 0.005,
+      ransac_trials: 1000
+    },
+    branch_distance_th_lambda2: 0.02,
+    subgraph_refine_mode: distance,
+    subgraph_edge_coefficient_alpha2: 0.8,
+    post_process_branch: {
+      noise_threshold: 10,
+      merge_threshold: 0.2,
+    },
+    # suggest to set them as default for TLS
+    refinement: {
+      sphere_radius: 0.02,
+      cpc_num_points_threshold: 40 
+    }
+  },
+  options: {
+    DEBUG: False,                   # plot graph prior to MST
+    LOGGING: False,                 # logging
+    TRUNK_REFINEMENT: False,        # trunk skeleton refinement
+    BRANCH_REFINEMENT: False,       # branch skeleton refinement
+    SAVE_PARAS: True,               # save parameters for each tree
+    SAVE_FIG: True,                 # plot and save figures
+    SEG_ON: True                    # turn on segmentation
+  }
+}
+
+characterization: {
+  extension: .mat,
+  diameter_start_idx: 1,
+  ### ====================================== ###
+  ###               Attention                ###
+  ### ====================================== ###
+  # #points to be average for diameter and angle calculation
+  # this # might impact the accuracy (need to tune experimentally)
+  diameter_K: 4,
+  angle_K: 4,
+  options: {
+    SHOW: False,                   # plot the branch number
+    SHOW_BRANCH: False,            # plot the single branch characterization
+    SAVE: True,                    # save characterization results as csv files
+    CLEAR: False,                  # clear everything
+    OUTPUT: False,                 # output skeleton infor for Real2Sim data generation
+    CHAR_ON: False                 # turn on characterization
+  }
+}

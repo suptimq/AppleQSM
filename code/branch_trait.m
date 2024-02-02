@@ -4,7 +4,7 @@ function T = branch_trait(skel_folder, tree_id, exp_id, excel_filename, options)
     SHOW_BRANCH = options.SHOW_BRANCH;
     SAVE = options.SAVE;
     CLEAR = options.CLEAR;
-    TO_FUSION = options.TO_FUSION;
+    OUTPUT = options.OUTPUT;
 
     skel_filename_format = '_contract_*_skeleton.mat';
     new_skel_folder = fullfile(skel_folder, '..', 'Segmentation');
@@ -100,12 +100,13 @@ function T = branch_trait(skel_folder, tree_id, exp_id, excel_filename, options)
         sliced_main_trunk_pts_inlier = sliced_main_trunk_pts(inliers == 1, :);
         sliced_main_trunk_pts_outlier = sliced_main_trunk_pts(inliers ~= 1, :);
 
-        N = 4;
+        % angle
+        N = options.CHAR_PARA.angle_K;
         [segment_vectors, vertical_angle, N] = find_branch_angle(trunk_internode, trunk_radius, v1, primary_spline_pts, N);
 
         % radius
-        s = 1;
-        M = 4; % #skeleton points used in radius
+        s = options.CHAR_PARA.diameter_start_idx;
+        M = options.CHAR_PARA.diameter_K; % #skeleton points used in radius
         tmp_radius = primary_spline_pts_radius;
 
         if length(tmp_radius) < M+s
@@ -116,7 +117,7 @@ function T = branch_trait(skel_folder, tree_id, exp_id, excel_filename, options)
 
         radius = median(tmp_radius(index), 'omitnan') * 1e3;
 
-        if TO_FUSION
+        if OUTPUT
             branch_internode_ratio = [branch_internode_ratio, ratio_distance];
             branch_angle_list = [branch_angle_list, vertical_angle];
             branch_diameter_list = [branch_diameter_list, radius];
@@ -174,7 +175,7 @@ function T = branch_trait(skel_folder, tree_id, exp_id, excel_filename, options)
         spline_start = spline_start + primary_spline_pts_size;
     end
 
-    if TO_FUSION
+    if OUTPUT
         P.branch_internode_ratio = branch_internode_ratio;
         P.branch_diameter = branch_diameter_list;
         P.branch_angle = branch_angle_list;

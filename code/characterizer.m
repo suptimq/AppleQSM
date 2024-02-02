@@ -3,21 +3,22 @@ path('confidence', path);
 path('utility', path);
 path('plot', path);
 path('refinement', path);
+path('config', path);
 
-extension = '.mat';
-data_folder = 'E:\Result\LLC_02022022\Row13';
-% models = {'Raw_Incomplete_Trees';
-%                      'AdaPoinTr_FTB55-v2_CDL1_Finetune';
-%                      'AdaPoinTr_LTB81-v4_CDL1_Finetune';
-%                      'Generator2-AdaPoinTr-Skeleton-GAN_FTB55-v2_CDL1_SkelLoss-Supervised-0.01_Finetune';
-%                      'Generator2-AdaPoinTr-Skeleton-GAN_LTB81-v4_CDL1_SkelLoss-Supervised-0.01_Finetune';
-%                      'Generator2-AdaPoinTr-Skeleton-GAN_LTB81-v4_CDL1_SkelLoss-Supervised-0.01_Repulsion_CPC-2nd-Stage_Finetune'};
-models = { 'AdaPoinTr_FTB55-v2_CDL1_Finetune';
-                    'Generator2-AdaPoinTr-Skeleton-GAN_FTB55-v2_CDL1_SkelLoss-Supervised-0.01_Finetune';};
-mode  = 'Primary';
-exp_id = '.';
+config = yaml.loadFile("config\iros_2024.yaml");
 
-result_folder = fullfile(data_folder, 'AppleQSM2');
+extension = config.segmentation.extension;
+data_folder = config.experiment.data_folder;
+models = config.experiment.models;
+mode  = config.experiment.mode;
+if yaml.isNull(config.experiment.exp_name)
+    exp_name='.';
+else
+    exp_name = config.experiment.exp_name;
+end
+exp_folder = config.experiment.exp_folder;
+
+result_folder = fullfile(data_folder, exp_folder);
 if ~exist(result_folder, "dir")
     mkdir(result_folder);
 end
@@ -25,34 +26,35 @@ end
 %%====================================%%
 %%=====structure segmentation para=====%%
 %%====================================%%
-options.DEBUG = false;                                       % plot graph prior to MST
-options.LOGGING = false;                                   % logging
-options.TRUNK_REFINEMENT = true;          % trunk skeleton refinement
-options.BRANCH_REFINEMENT = true;        % branch skeleton refinement
-options.SAVE_PARAS = true;                             % save parameters for each tree
-options.LOAD_PARAS = false;                            
-options.SAVE_FIG = true;                                    % plot and save figures
-options.SEG_ON = false;
+options.SEG_PARA = config.segmentation;
+options.DEBUG = config.segmentation.options.DEBUG;
+options.LOGGING = config.segmentation.options.LOGGING;
+options.TRUNK_REFINEMENT = config.segmentation.options.TRUNK_REFINEMENT;
+options.BRANCH_REFINEMENT = config.segmentation.options.BRANCH_REFINEMENT;        
+options.SAVE_PARAS = config.segmentation.options.SAVE_PARAS;
+options.SAVE_FIG = config.segmentation.options.SAVE_FIG;
+options.SEG_ON = config.segmentation.options.SEG_ON;
 
 %%====================================%%
 %%=====architecture trait extraction para=====%%
 %%====================================%%
-options.SHOW = false;
-options.SHOW_BRANCH = false;
-options.SAVE = true;
-options.CLEAR = false;
-options.TO_FUSION = false;
-options.CHAR_ON = true;
+options.CHAR_PARA = config.characterization;
+options.SHOW = config.characterization.options.SHOW;
+options.SHOW_BRANCH = config.characterization.options.SHOW_BRANCH;
+options.SAVE =config.characterization.options.SAVE;
+options.CLEAR = config.characterization.options.CLEAR;
+options.OUTPUT = config.characterization.options.OUTPUT;
+options.CHAR_ON =config.characterization.options.CHAR_ON;
 
-% Create cell array for table data
-data = cell(numel(models), 10);
+% create cell array for table data
+data = cell(numel(models), config.experiment.num_tree+1);
 
 for i = 1:length(models)
     model = models{i};
     tree_folder = fullfile(data_folder, model, mode);
-    skel_folder = fullfile(data_folder, model, mode, 'AppleQSM2', 'Skeleton');
+    skel_folder = fullfile(data_folder, model, mode, exp_folder, 'Skeleton');
 
-    files = dir(fullfile(skel_folder, exp_id, ['tree*' extension]));
+    files = dir(fullfile(skel_folder, exp_name, 'tree*'+extension));
     files = natsortfiles(files);
 
     data{i, 1} = model;
@@ -63,7 +65,7 @@ for i = 1:length(models)
             split_file = split(name, '_');
             tree_id = split_file{1};
             disp(['=========Tree ' num2str(tree_id) ' ========='])
-            num_primary_branch = segmentation(data_folder, skel_folder, tree_id, exp_id, options);
+            num_primary_branch = segmentation(data_folder, skel_folder, tree_id, exp_name, options);
             data{i, 1+k} = num_primary_branch;
         end
     
@@ -92,7 +94,7 @@ for i = 1:length(models)
             split_file = split(name, '_');
             tree_id = split_file{1};
             disp(['=========Tree ' num2str(tree_id) ' ========='])
-            nt = branch_trait(skel_folder, tree_id, exp_id, '_branch_trait.xlsx', options);
+            nt = branch_trait(skel_folder, tree_id, exp_name, '_branch_trait.xlsx', options);
             if k == 1
                 T = nt;
             else
@@ -100,7 +102,7 @@ for i = 1:length(models)
             end
         end
         
-        output_folder = fullfile(skel_folder, '..', 'Characterization', exp_id);
+        output_folder = fullfile(skel_folder, '..', 'Characterization', exp_name);
         branch_csv_filepath = fullfile(output_folder, 'Branch_Trait.csv');
         writetable(T, branch_csv_filepath);
     end

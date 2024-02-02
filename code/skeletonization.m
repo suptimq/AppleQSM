@@ -4,49 +4,55 @@ path('plot', path);
 path('utility', path);
 path('subsample', path);
 path('skeleton', path);
+path('config', path);
 
-options.bin_size = 5;
-options.num_iteration = 7;
-options.subsample_num = 50000;
-options.subsample_mode = 1; % 1-Hilbert Curve, 2-Random, 3-Grid
-options.density_mode = 2; % 1-Hilbert Curve, 2-KNN
-options.gridStep = 0.0048;
+config = yaml.loadFile("config\iros_2024.yaml");
+
+%% load downsampling parameters
+options.bin_size = config.skeleton.bin_size;
+options.num_iteration = config.skeleton.num_iteration;
+options.downsample_num = config.skeleton.downsample_num;
+options.downsample_mode = config.skeleton.downsample_mode; 
+options.density_mode = config.skeleton.density_mode; 
+options.gridStep = config.skeleton.gridStep;
 options.USING_POINT_RING = GS.USING_POINT_RING;
+options.sample_radius_factor = config.skeleton.sample_radius_factor;
 
-extension = '.pcd';
-data_folder = 'E:\Result\LLC_02022022\Row13';
-% models = {'Raw_Incomplete_Trees';
-%                      'AdaPoinTr_FTB55-v2_CDL1_Finetune';
-%                      'AdaPoinTr_LTB81-v4_CDL1_Finetune';
-%                      'Generator2-AdaPoinTr-Skeleton-GAN_FTB55-v2_CDL1_SkelLoss-Supervised-0.01_Finetune';
-%                      'Generator2-AdaPoinTr-Skeleton-GAN_LTB81-v4_CDL1_SkelLoss-Supervised-0.01_Finetune';
-%                      'Generator2-AdaPoinTr-Skeleton-GAN_LTB81-v4_CDL1_SkelLoss-Supervised-0.01_Repulsion_CPC-2nd-Stage_Finetune'};
-models = { 'AdaPoinTr_FTB55-v2_CDL1_Finetune';
-                    'Generator2-AdaPoinTr-Skeleton-GAN_FTB55-v2_CDL1_SkelLoss-Supervised-0.01_Finetune';};
-mode  = 'Primary';
-exp_id = '.';
+% load experimental parameters
+extension = config.skeleton.extension;
+data_folder = config.experiment.data_folder;
+models = config.experiment.models;
+mode  = config.experiment.mode;
+if yaml.isNull(config.experiment.exp_name)
+    exp_name='.';
+else
+    exp_name = config.experiment.exp_name;
+end
+exp_folder = config.experiment.exp_folder;
 
+%% loop models
 for k = 1:length(models)
     model = models{k};
     tree_folder = fullfile(data_folder, model, mode);
-    skel_folder = fullfile(data_folder, model, mode, 'AppleQSM2', 'Skeleton');
+    skel_folder = fullfile(data_folder, model, mode, exp_folder, 'Skeleton');
 
-    files = dir([tree_folder '\' '*' extension]);
+    files = dir(fullfile(tree_folder, '*'+extension));
     files = natsortfiles(files);
     
+    % loop files
     for i = 1:length(files)
         filename = files(i).name;
         filepath = files(i).folder;
         disp(['=========Tree ' num2str(filename) ' ========='])
-        skeleton(filepath, skel_folder, exp_id, filename, options);
+        skeleton(filepath, skel_folder, exp_name, filename, options);
     end
 end
 
-function [] = skeleton(data_folder, skel_folder, exp_id, filename_, options)
+function [] = skeleton(data_folder, skel_folder, exp_name, filename_, options)
 
     close all;
 
-    save_folder = fullfile(skel_folder, exp_id);
+    save_folder = fullfile(skel_folder, exp_name);
 
     if ~exist(save_folder, 'dir')
         mkdir(save_folder)
@@ -64,15 +70,15 @@ function [] = skeleton(data_folder, skel_folder, exp_id, filename_, options)
     P.original_pt_norm = mean(original_pt_location, 1);
     fprintf('number of points for original dataset: %d pts\n', original_pt_normalized.Count);
 
-    P.subsample_num = options.subsample_num;
+    P.downsample_num = options.downsample_num;
 
-    if P.subsample_num < original_pt_normalized.Count
-        if options.subsample_mode == 1
+    if P.downsample_num < original_pt_normalized.Count
+        if options.downsample_mode == 1
             P.bin_size = options.bin_size;
             P.num_iteration = options.num_iteration;
-            downsample_pt_normalized = Hilbertcurve_method(P.num_iteration, P.bin_size, P.subsample_num, original_pt_normalized);
-        elseif options.subsample_mode == 2
-            ratio = P.subsample_num / original_pt_normalized.Count;
+            downsample_pt_normalized = Hilbertcurve_method(P.num_iteration, P.bin_size, P.downsample_num, original_pt_normalized);
+        elseif options.downsample_mode == 2
+            ratio = P.downsample_num / original_pt_normalized.Count;
             downsample_pt_normalized = pcdownsample(original_pt_normalized, 'random', ratio); % visualization purpose only!
         else
             downsample_pt_normalized = pcdownsample(original_pt_normalized, 'gridAverage', options.gridStep);
@@ -119,7 +125,7 @@ function [] = skeleton(data_folder, skel_folder, exp_id, filename_, options)
 
     %% Step 4: point to curve ?C by cluster ROSA2.0
     tic
-    P.sample_radius = P.diameter * 0.006;
+    P.sample_radius = P.diameter * options.sample_radius_factor;
     P = rosa_lineextract(P, P.sample_radius, 1);
     fprintf('to curve:\n');
     toc

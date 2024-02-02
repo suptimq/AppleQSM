@@ -6,8 +6,6 @@ function [primary_branch_counter] = segmentation(data_folder, skel_folder, tree_
     % skeleton refinement
     TRUNK_REFINEMENT = options.TRUNK_REFINEMENT;
     BRANCH_REFINEMENT = options.BRANCH_REFINEMENT;
-    % save parameters for each tree
-    LOAD_PARAS = options.LOAD_PARAS;
     % plot and save figures
     SAVE_FIG = options.SAVE_FIG;
 
@@ -15,7 +13,7 @@ function [primary_branch_counter] = segmentation(data_folder, skel_folder, tree_
     skel_filename = search_skeleton_file(tree_id, fullfile(skel_folder, exp_id), skel_filename_format);
     paras_filename = [exp_id '_parameters.mat'];
 
-    branch_folder = fullfile('D:\Code\Apple_Crop_Potential_Prediction\data\row13', [tree_id '_branch']);
+    branch_folder = fullfile(options.SEG_PARA.reference_branch_folder, [tree_id '_branch']);
     files = dir(fullfile(branch_folder, 'Section*.ply'));
 
     output_folder = fullfile(skel_folder, '..', 'Segmentation', exp_id);
@@ -23,7 +21,6 @@ function [primary_branch_counter] = segmentation(data_folder, skel_folder, tree_
     new_skel_folder = fullfile(skel_folder, '..', 'Segmentation', exp_id);
     log_filepath = fullfile(log_folder, [tree_id '_log']);
     paras_filepath = fullfile(output_folder, paras_filename);
-    paras = struct();
 
     if LOGGING
         diary logfile
@@ -46,10 +43,6 @@ function [primary_branch_counter] = segmentation(data_folder, skel_folder, tree_
     skel_filepath = fullfile(skel_folder, exp_id, skel_filename);
     new_skel_filepath = fullfile(new_skel_folder, skel_filename);
     load(skel_filepath, 'P'); % P results from skeleton operation
-
-    if exist(paras_filepath, 'file') && LOAD_PARAS
-        load(paras_filepath, 'paras');
-    end
 
     % visualization purpose only and show the original point clouds
     original_pt_normalized = P.original_pt;
@@ -85,9 +78,9 @@ function [primary_branch_counter] = segmentation(data_folder, skel_folder, tree_
     disp('===================Trunk Identification===================');
 
     %% create a graph with density as weights
-    distance_th = load_parameters(paras, 'distance_th_lambda1', 0.1);
-    mode = load_parameters(paras, 'entire_graph_refine_mode', 'distance');
-    coefficient_inv_density_weight = load_parameters(paras, 'graph_edge_coefficient_alpha1', 0.6);
+    distance_th = options.SEG_PARA.trunk.distance_th_lambda1;
+    mode = options.SEG_PARA.trunk.entire_graph_refine_mode;
+    coefficient_inv_density_weight = options.SEG_PARA.trunk.graph_edge_coefficient_alpha1;
     [adj_matrix, adj_idx, density_weight, inv_density_weight, distance_weight] = refine_adj_matrix(P.spls, P.spls_adj, P.spls_density, distance_th, mode);
     % normalize inv_density_weight and distance_weight to [0, 1]
     inv_weight_normalized = normalize(inv_density_weight, 'range');
@@ -110,7 +103,7 @@ function [primary_branch_counter] = segmentation(data_folder, skel_folder, tree_
     hold on
 
     % select root point candidates
-    root_point_search_range = load_parameters(paras, 'root_point_search_range', P.sample_radius);
+    root_point_search_range = P.sample_radius;
     [root_val, ~] = min(P.spls(:, 3));
     root_points_idx = find(P.spls(:, 3) < root_val + root_point_search_range);
     root_points = P.spls(root_points_idx, :);
@@ -168,7 +161,7 @@ function [primary_branch_counter] = segmentation(data_folder, skel_folder, tree_
     distance_weight_MST = distance_weight(lia == 1, :);
     density_weight_MST_normalized = normalize(density_weight_MST, 'range');
     distance_weight_MST_normalized = normalize(distance_weight_MST, 'range');
-    coefficient_density_weight = load_parameters(paras, 'graph_edge_coefficient_alpha2', 0.4);
+    coefficient_density_weight = options.SEG_PARA.trunk.graph_edge_coefficient_alpha2;
     MST_weight = coefficient_density_weight * density_weight_MST_normalized + (1 - coefficient_density_weight) * distance_weight_MST_normalized;
     MST.Edges.Weight = MST_weight;
     % MST.Edges.Weight = (density_weight(lia == 1, :) + 1).^2; % scale weights to enlarge the gap
@@ -190,7 +183,7 @@ function [primary_branch_counter] = segmentation(data_folder, skel_folder, tree_
     end
 
     maxk_counter = 1;
-    z_threshold = 10;
+    z_threshold = options.SEG_PARA.trunk.z_threshold;
     z_difference = ones(z_threshold, 1) * -1;
     [~, maxk_index] = maxk(shortest_path_distance, size(P.spls, 1));
     while sum(z_difference < 0) >= z_threshold
@@ -229,7 +222,7 @@ function [primary_branch_counter] = segmentation(data_folder, skel_folder, tree_
     % main trunk refinement (heritage issue)
     disp('===================Trunk Skeleton Refinement (Heritage)===================');
     P.main_trunk_height = main_trunk_endpoint(3) - min(P.spls(:, 3)); % height before normalization
-    main_trunk_refine_range = load_parameters(paras, 'main_trunk_refine_range', P.sample_radius);
+    main_trunk_refine_range = P.sample_radius;
     new_main_trunk_pts_idx = zeros(0, 1);
 
     for i = 1:length(main_trunk_pts_idx) - 1
@@ -272,12 +265,12 @@ function [primary_branch_counter] = segmentation(data_folder, skel_folder, tree_
     %%---------------------------------------------------------%%
     disp('===================Trunk Diameter Estimation===================');
 
-    slice_range_z_axis = 0.05;
+    slice_range_z_axis = options.SEG_PARA.trunk.slice_range_z_axis;
     trunk_root_pts_index = P.pts(:, 3) <= root_point_max_MST(3) + slice_range_z_axis;
     trunk_root_pts = P.pts(trunk_root_pts_index, :);
-    min_samples = load_parameters(paras, 'ransac_trunk_diameter_min_sample', 30);
-    residual_threshold = load_parameters(paras, 'ransac_trunk_diameter_threshold', 0.005);
-    max_trials = load_parameters(paras, 'ransac_trunk_diameter_trials', 100);
+    min_samples = options.SEG_PARA.trunk.ransac_trunk_diameter_min_sample;
+    residual_threshold = options.SEG_PARA.trunk.ransac_trunk_diameter_threshold;
+    max_trials = options.SEG_PARA.trunk.ransac_trunk_diameter_trials;
 
     while size(trunk_root_pts, 1) <= min_samples
         min_samples = min_samples / 2;
@@ -290,7 +283,7 @@ function [primary_branch_counter] = segmentation(data_folder, skel_folder, tree_
 
     % clustering
     noise_label = -1;
-    eps = load_parameters(paras, 'branch_seg_dbscan_eps', P.sample_radius * 2);
+    eps = options.SEG_PARA.trunk.trunk_branch_seg_dbscan_eps_factor * P.sample_radius;
     cluster_label = dbscan(trunk_root_pts, eps, min_samples);
     noise_pts = trunk_root_pts(cluster_label == noise_label, :);
     trunk_root_pts = trunk_root_pts(cluster_label ~= noise_label, :);
@@ -347,10 +340,10 @@ function [primary_branch_counter] = segmentation(data_folder, skel_folder, tree_
         disp('===================Trunk Skeleton Refinement===================');
 
         trunk_refinement_options.xy_radius = max(radius_x, radius_y);
-        trunk_refinement_options.z_radius = 0.02;
-        trunk_refinement_options.maximum_length = 0.005;
-        trunk_refinement_options.N = 10;
-        trunk_refinement_options.M = 100;
+        trunk_refinement_options.z_radius = options.SEG_PARA.trunk.refinement.z_radius;
+        trunk_refinement_options.maximum_length = options.SEG_PARA.trunk.refinement.maximum_length;
+        trunk_refinement_options.N = options.SEG_PARA.trunk.refinement.N;
+        trunk_refinement_options.M = options.SEG_PARA.trunk.refinement.M;
         [trunk_cpc_optimized_center, trunk_cpc_optimized_radius, trunk_cpc_optimized_confidence, trunk_pc] = trunk_refinement(P, main_trunk_pts_idx, trunk_refinement_options);
         P.trunk_cpc_optimized_center = trunk_cpc_optimized_center;
         P.trunk_cpc_optimized_radius = trunk_cpc_optimized_radius;
@@ -381,9 +374,9 @@ function [primary_branch_counter] = segmentation(data_folder, skel_folder, tree_
         setappdata(gcf, 'StoreTheLink', Link);
     end
 
-%     if isfield(P, 'trunk_cpc_optimized_center')
-%         refined_main_trunk_pts = P.trunk_cpc_optimized_center;
-%     end
+    if isfield(P, 'trunk_cpc_optimized_center') && options.SEG_PARA.trunk.use_refined_trunk
+        refined_main_trunk_pts = P.trunk_cpc_optimized_center;
+    end
 
     distance_list = [];
 
@@ -425,7 +418,7 @@ function [primary_branch_counter] = segmentation(data_folder, skel_folder, tree_
     %%---------------------------------------------------------%%
     %% pre-filter branch root points in crotch area
     disp('===================Running DBSCAN on crotch points===================');
-    sphere_radius = 6 * P.sample_radius;
+    sphere_radius = options.SEG_PARA.branch.sphere_radius_factor * P.sample_radius;
     crotch_pts_index = sphere_pruning(P.spls, refined_main_trunk_pts, refined_main_trunk_pts_idx, sphere_radius);
     crotch_pts = P.spls(crotch_pts_index, :);
     crotch_pts = sortrows(crotch_pts, 3);
@@ -434,8 +427,8 @@ function [primary_branch_counter] = segmentation(data_folder, skel_folder, tree_
 
     %% DBSCAN clustering
     noise_label = -1;
-    eps = load_parameters(paras, 'branch_seg_dbscan_eps', P.sample_radius * 1.5);
-    min_samples = load_parameters(paras, 'branch_seg_dbscan_min_samples', 3);
+    eps = options.SEG_PARA.branch.branch_seg_dbscan_eps_factor * P.sample_radius;
+    min_samples = options.SEG_PARA.branch.branch_seg_dbscan_min_samples;
     cluster_label = dbscan(crotch_pts, eps, min_samples);
     noise_pts = crotch_pts(cluster_label == noise_label, :);
     crotch_pts = crotch_pts(cluster_label ~= noise_label, :);
@@ -495,7 +488,7 @@ function [primary_branch_counter] = segmentation(data_folder, skel_folder, tree_
     %% 2. calculate the closest distance
     %%----------------------------------------------------------%%
     cluster_counter = 0;
-    line_distance_threshold = 0.06;
+    line_distance_threshold = options.SEG_PARA.branch.post_process_cluster.line_distance_threshold;
     internode_index_cell = {};
     cluster_pts_cell = {};
     internode_point_distance = [];
@@ -552,7 +545,9 @@ function [primary_branch_counter] = segmentation(data_folder, skel_folder, tree_
             tmp_ii = 1:row + 5;
         end
 
-        min_samples = 3; residual_threshold = 0.005; max_trials = 1e3;
+        min_samples = options.SEG_PARA.branch.post_process_cluster.ransac_min_sample; 
+        residual_threshold = options.SEG_PARA.branch.post_process_cluster.ransac_threshold; 
+        max_trials = options.SEG_PARA.branch.post_process_cluster.ransac_trials;
         [sliced_vector, ~, ~] = ransac_py(sliced_main_trunk_pts(tmp_ii, :), '3D_Line', min_samples, residual_threshold, max_trials);
 
         % use the first three points in case the branch has bifurcation to
@@ -619,15 +614,15 @@ function [primary_branch_counter] = segmentation(data_folder, skel_folder, tree_
     %%---------------------------------------------------------%%
     disp('===================Branch Segmentation===================');
     % build weighted graph which excludes main trunk pts and refined branch pts
-    branch_distance_th = load_parameters(paras, 'branch_distance_th_lambda2', 0.02);
+    branch_distance_th = options.SEG_PARA.branch.branch_distance_th_lambda2;
     rest_pts_adj = MST_adj_matrix(rest_pts_idx, rest_pts_idx);
     rest_pts_density = P.spls_density(rest_pts_idx);
 
-    branch_mode = load_parameters(paras, 'subgraph_refine_mode', 'distance');
+    branch_mode = options.SEG_PARA.branch.subgraph_refine_mode;
     [adj_matrix, adj_idx, density_weight, inv_density_weight, distance_weight] = refine_adj_matrix(rest_pts, rest_pts_adj, rest_pts_density, branch_distance_th, branch_mode);
     density_weight_normalized = normalize(density_weight, 'range');
     distance_weight_normalized = normalize(distance_weight, 'range');
-    coefficient_density_weight = load_parameters(paras, 'subgraph_edge_coefficient_alpha2', 0.8);
+    coefficient_density_weight = options.SEG_PARA.branch.subgraph_edge_coefficient_alpha2;
 
     disp(['distance threshold lambda2: ' num2str(branch_distance_th)]);
     disp(['subgraph refine mode: ' branch_mode]);
@@ -787,8 +782,8 @@ function [primary_branch_counter] = segmentation(data_folder, skel_folder, tree_
     xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
 
     % merge
-    noise_threshold = 10;
-    merge_threshold = 0.2;
+    noise_threshold = options.SEG_PARA.branch.post_process_branch.noise_threshold;
+    merge_threshold = options.SEG_PARA.branch.post_process_branch.merge_threshold;
 
     disp(['merge #point threshold: ' num2str(noise_threshold)]);
     disp(['merge distance threshold: ' num2str(merge_threshold)]);
@@ -1031,9 +1026,9 @@ function [primary_branch_counter] = segmentation(data_folder, skel_folder, tree_
         % branch_refinement_options.sphere_radius = 0.02;
         % branch_refinement_options.maximum_length = 0.004;
         % branch_refinement_options.cpc_num_points_threshold = 40;
-        branch_refinement_options.sphere_radius = 0.02;
+        branch_refinement_options.sphere_radius = options.SEG_PARA.branch.refinement.sphere_radius;;
         branch_refinement_options.maximum_length = branch_refinement_options.sphere_radius / 5;
-        branch_refinement_options.cpc_num_points_threshold = 40;
+        branch_refinement_options.cpc_num_points_threshold = options.SEG_PARA.branch.refinement.cpc_num_points_threshold;;
 
         primary_branch_pc_list = [];
         primary_center = [];
