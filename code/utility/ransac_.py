@@ -22,9 +22,13 @@ def ransac_(value, model, min_samples=5, residual_threshold=0.05, max_trials=100
     elif model == '3D_Line':
         fitting_model = LineModelND
 
-    model_robust, inliers = ransac(value, fitting_model, min_samples=min_samples,
-                                   residual_threshold=residual_threshold, max_trials=max_trials)
-    outliers = inliers == False
+    try:
+        model_robust, inliers = ransac(value, fitting_model, min_samples=min_samples,
+                                       residual_threshold=residual_threshold, max_trials=max_trials)
+        outliers = inliers == False
+    except:
+        print(f"-----------------------------!!! Failed to fit {model} using RANSAC in Python !!!-----------------------------")
+        return None, None, None
 
     if model == 'Ellipse':
         vector = np.round(model_robust.params, 10)

@@ -72,7 +72,9 @@ segmentation: {
       line_distance_threshold: 0.06,
       # the larger number is the looser the constraint is
       point_distance_threshold_factor: 100,
-      # might need to reduce the min_sample to 2 if points are very sparse
+      # if ransac failed to fit sliced_trunk, increase the z_search_range or minimum_trunk_points
+      z_search_range: 0.1,
+      minimum_trunk_points: 6,     # recommend to be at least twice as the ransac_min_sample
       ransac_min_sample: 3,
       ransac_threshold: 0.005,
       ransac_trials: 1000

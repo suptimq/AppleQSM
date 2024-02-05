@@ -297,6 +297,9 @@ function [primary_branch_counter] = segmentation(data_folder, skel_folder, tree_
     
     % ellipse fitting
     [ellipse, inliers, outliers] = ransac_py(largest_trunk_cluster_pts(:, 1:2), 'Ellipse', min_samples, residual_threshold, max_trials);
+    if isnan(ellipse)
+        error('===================Trunk Diameter Estimation Failed Due to Failed RANSAC  ===================');
+    end
     xc = ellipse(1); yc = ellipse(2); radius_x = ellipse(3); radius_y = ellipse(4); theta = ellipse(5); trunk_radius = (radius_x + radius_y) / 2;
     inliers_idx = find(inliers == 1); outliers_idx = find(outliers == 1);
 
@@ -509,8 +512,8 @@ function [primary_branch_counter] = segmentation(data_folder, skel_folder, tree_
 
         cluster_pts_cell{i} = cur_cluster_pts;
         start = true;
-        z_search_range = 0.1;
-        while start || size(sliced_main_trunk_pts, 1) <= 3
+        z_search_range = options.SEG_PARA.branch.post_process_cluster.z_search_range;
+        while start || size(sliced_main_trunk_pts, 1) <= options.SEG_PARA.branch.post_process_cluster.minimum_trunk_points
             [sliced_main_trunk_pts, row, col] = find_internode(double(cur_cluster_pts), refined_main_trunk_pts, z_search_range, false);
             z_search_range = z_search_range + 0.1;
             start = false;
@@ -549,6 +552,11 @@ function [primary_branch_counter] = segmentation(data_folder, skel_folder, tree_
         residual_threshold = options.SEG_PARA.branch.post_process_cluster.ransac_threshold; 
         max_trials = options.SEG_PARA.branch.post_process_cluster.ransac_trials;
         [sliced_vector, ~, ~] = ransac_py(sliced_main_trunk_pts(tmp_ii, :), '3D_Line', min_samples, residual_threshold, max_trials);
+        
+        if isnan(sliced_vector)
+            disp(['===================SKIP CLUSTER ' num2str(i) ' Due to Failed RANSAC  ==================='])
+            continue
+        end
 
         % use the first three points in case the branch has bifurcation to
         % compute the distance
