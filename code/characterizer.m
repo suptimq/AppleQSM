@@ -7,16 +7,17 @@ path('config', path);
 
 config = yaml.loadFile("config\iros_2024.yaml");
 
-extension = config.segmentation.extension;
-data_folder = config.experiment.data_folder;
+% load experimental parameters
+mat_extension = config.experiment.mat_extension{1};
+data_folder = config.experiment.data_folder{1};
 models = config.experiment.models;
-mode  = config.experiment.mode;
+mode  = config.experiment.mode{1};
 if yaml.isNull(config.experiment.exp_name)
     exp_name='.';
 else
     exp_name = config.experiment.exp_name;
 end
-exp_folder = config.experiment.exp_folder;
+exp_folder = config.experiment.exp_folder{1};
 
 result_folder = fullfile(data_folder, exp_folder);
 if ~exist(result_folder, "dir")
@@ -50,17 +51,18 @@ options.CHAR_ON =config.characterization.options.CHAR_ON;
 data = cell(numel(models), config.experiment.num_tree+1);
 
 for i = 1:length(models)
-    model = models{i};
+    model = models{i}{1};
     tree_folder = fullfile(data_folder, model, mode);
     skel_folder = fullfile(data_folder, model, mode, exp_folder, 'Skeleton');
 
-    files = dir(fullfile(skel_folder, exp_name, 'tree*'+extension));
-    files = natsortfiles(files);
+    % load skeleton files
+    mat_files = dir(fullfile(skel_folder, exp_name, ['tree*' mat_extension]));
+    mat_files = natsortfiles(mat_files);
 
     data{i, 1} = model;
     if options.SEG_ON
         for k = 1:length(files)
-            file = files(k).name;
+            file = mat_files(k).name;
             [filepath, name, ext] = fileparts(file);
             split_file = split(name, '_');
             tree_id = split_file{1};
@@ -88,8 +90,8 @@ for i = 1:length(models)
     end
     
     if options.CHAR_ON
-        for k = 1:length(files)
-            file = files(k).name;
+        for k = 1:length(mat_files)
+            file = mat_files(k).name;
             [filepath, name, ext] = fileparts(file);
             split_file = split(name, '_');
             tree_id = split_file{1};

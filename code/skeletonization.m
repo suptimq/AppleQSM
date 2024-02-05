@@ -19,30 +19,30 @@ options.USING_POINT_RING = GS.USING_POINT_RING;
 options.sample_radius_factor = config.skeleton.sample_radius_factor;
 
 % load experimental parameters
-extension = config.skeleton.extension;
-data_folder = config.experiment.data_folder;
+pcd_extension = config.experiment.pcd_extension{1};
+data_folder = config.experiment.data_folder{1};
 models = config.experiment.models;
-mode  = config.experiment.mode;
+mode  = config.experiment.mode{1};
 if yaml.isNull(config.experiment.exp_name)
     exp_name='.';
 else
     exp_name = config.experiment.exp_name;
 end
-exp_folder = config.experiment.exp_folder;
+exp_folder = config.experiment.exp_folder{1};
 
 %% loop models
 for k = 1:length(models)
-    model = models{k};
+    model = models{k}{1};
     tree_folder = fullfile(data_folder, model, mode);
     skel_folder = fullfile(data_folder, model, mode, exp_folder, 'Skeleton');
 
-    files = dir(fullfile(tree_folder, '*'+extension));
-    files = natsortfiles(files);
+    pcd_files = dir(fullfile(tree_folder, ['*' pcd_extension]));
+    pcd_files = natsortfiles(pcd_files);
     
-    % loop files
-    for i = 1:length(files)
-        filename = files(i).name;
-        filepath = files(i).folder;
+    % loop pcd_files
+    for i = 1:length(pcd_files)
+        filename = pcd_files(i).name;
+        filepath = pcd_files(i).folder;
         disp(['=========Tree ' num2str(filename) ' ========='])
         skeleton(filepath, skel_folder, exp_name, filename, options);
     end

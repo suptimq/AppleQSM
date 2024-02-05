@@ -1,7 +1,5 @@
 experiment: {
-  models: [
-    'AdaPoinTr_FTB55-v2_CDL1_Finetune', 
-    'Generator2-AdaPoinTr-Skeleton-GAN_FTB55-v2_CDL1_SkelLoss-Supervised-0.01_Finetune'],
+  models: ['Generator2-AdaPoinTr-Skeleton-GAN_FTB55-v2_CDL1_SkelLoss-Coordinate-Only-Supervised-0.01_Finetune'],
   # models: ['Raw_Incomplete_Trees',
   #         'AdaPoinTr_FTB55-v2_CDL1_Finetune',
   #         'AdaPoinTr_LTB81-v4_CDL1_Finetune',
@@ -11,8 +9,10 @@ experiment: {
   mode: Primary,
   num_tree: 9,
   exp_name: ,
-  exp_folder: AppleQSM3,
+  exp_folder: AppleQSM,
   data_folder: E:\Result\LLC_02022022\Row13,
+  pcd_extension: .pcd,
+  mat_extension: .mat
 }
 
 skeleton: {
@@ -28,11 +28,9 @@ skeleton: {
   ### this factor is IMPORTANT
   ### a large factor leads to sparse skeleton 
   sample_radius_factor: 0.006,
-  extension: .pcd,
 }
 
 segmentation: {
-  extension: .mat,
   reference_branch_folder: D:\Code\Apple_Crop_Potential_Prediction\data\row13,
   trunk: {
     distance_th_lambda1: 0.1,
@@ -95,8 +93,8 @@ segmentation: {
   options: {
     DEBUG: False,                   # plot graph prior to MST
     LOGGING: False,                 # logging
-    TRUNK_REFINEMENT: False,        # trunk skeleton refinement
-    BRANCH_REFINEMENT: False,       # branch skeleton refinement
+    TRUNK_REFINEMENT: True,        # trunk skeleton refinement
+    BRANCH_REFINEMENT: True,       # branch skeleton refinement
     SAVE_PARAS: True,               # save parameters for each tree
     SAVE_FIG: True,                 # plot and save figures
     SEG_ON: True                    # turn on segmentation
@@ -104,7 +102,6 @@ segmentation: {
 }
 
 characterization: {
-  extension: .mat,
   diameter_start_idx: 1,
   ### ====================================== ###
   ###               Attention                ###
@@ -114,7 +111,7 @@ characterization: {
   diameter_K: 4,
   angle_K: 4,
   options: {
-    SHOW: False,                   # plot the branch number
+    SHOW: True,                   # plot the branch number
     SHOW_BRANCH: False,            # plot the single branch characterization
     SAVE: True,                    # save characterization results as csv files
     CLEAR: False,                  # clear everything

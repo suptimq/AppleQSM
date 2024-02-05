@@ -13,7 +13,7 @@ function [primary_branch_counter] = segmentation(data_folder, skel_folder, tree_
     skel_filename = search_skeleton_file(tree_id, fullfile(skel_folder, exp_id), skel_filename_format);
     paras_filename = [exp_id '_parameters.mat'];
 
-    branch_folder = fullfile(options.SEG_PARA.reference_branch_folder, [tree_id '_branch']);
+    branch_folder = fullfile(options.SEG_PARA.reference_branch_folder{1}, [tree_id '_branch']);
     files = dir(fullfile(branch_folder, 'Section*.ply'));
 
     output_folder = fullfile(skel_folder, '..', 'Segmentation', exp_id);
@@ -79,7 +79,7 @@ function [primary_branch_counter] = segmentation(data_folder, skel_folder, tree_
 
     %% create a graph with density as weights
     distance_th = options.SEG_PARA.trunk.distance_th_lambda1;
-    mode = options.SEG_PARA.trunk.entire_graph_refine_mode;
+    mode = options.SEG_PARA.trunk.entire_graph_refine_mode{1};
     coefficient_inv_density_weight = options.SEG_PARA.trunk.graph_edge_coefficient_alpha1;
     [adj_matrix, adj_idx, density_weight, inv_density_weight, distance_weight] = refine_adj_matrix(P.spls, P.spls_adj, P.spls_density, distance_th, mode);
     % normalize inv_density_weight and distance_weight to [0, 1]
@@ -618,7 +618,7 @@ function [primary_branch_counter] = segmentation(data_folder, skel_folder, tree_
     rest_pts_adj = MST_adj_matrix(rest_pts_idx, rest_pts_idx);
     rest_pts_density = P.spls_density(rest_pts_idx);
 
-    branch_mode = options.SEG_PARA.branch.subgraph_refine_mode;
+    branch_mode = options.SEG_PARA.branch.subgraph_refine_mode{1};
     [adj_matrix, adj_idx, density_weight, inv_density_weight, distance_weight] = refine_adj_matrix(rest_pts, rest_pts_adj, rest_pts_density, branch_distance_th, branch_mode);
     density_weight_normalized = normalize(density_weight, 'range');
     distance_weight_normalized = normalize(distance_weight, 'range');
