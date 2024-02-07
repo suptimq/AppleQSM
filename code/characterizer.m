@@ -90,23 +90,45 @@ for i = 1:length(models)
     end
     
     if options.CHAR_ON
+
+        characterization_folder = fullfile(data_folder, model, mode, exp_folder, 'Characterization');
+        matched_qsm_filepath = fullfile(characterization_folder, '3DGAC_Matched_Branch_Trait.csv');
+        if exist(matched_qsm_filepath, 'file')
+            matched_qsm_table = readtable(matched_qsm_filepath);
+        else
+            matched_qsm_table = table;
+        end
+
         for k = 1:length(mat_files)
             file = mat_files(k).name;
             [filepath, name, ext] = fileparts(file);
             split_file = split(name, '_');
             tree_id = split_file{1};
             disp(['=========Tree ' num2str(tree_id) ' ========='])
-            nt = branch_trait(skel_folder, tree_id, exp_name, '_branch_trait.xlsx', options);
+            nt = branch_trait(skel_folder, tree_id, exp_name, '_branch_trait.xlsx', matched_qsm_table, options);
             if k == 1
                 T = nt;
             else
                 T = vertcat(T, nt);
             end
         end
-        
-        output_folder = fullfile(skel_folder, '..', 'Characterization', exp_name);
-        branch_csv_filepath = fullfile(output_folder, 'Branch_Trait.csv');
-        writetable(T, branch_csv_filepath);
+
+        if options.SHOW
+            % maximize the figure window to fullscreen
+            set(gcf, 'WindowState', 'maximized');
+            % upfront  view
+            view([90, 0])
+            saveas(gcf, fullfile(characterization_folder, 'upfront.png'));
+            % top view
+            view([90, 90])
+            saveas(gcf, fullfile(characterization_folder, 'top.png'));
+        end
+
+        if options.SAVE
+            output_folder = fullfile(skel_folder, '..', 'Characterization', exp_name);
+            branch_csv_filepath = fullfile(output_folder, 'Branch_Trait.csv');
+            writetable(T, branch_csv_filepath);
+        end
     end
 
 end
