@@ -1,11 +1,10 @@
 experiment: {
-  models: ['Generator2-AdaPoinTr-Skeleton-GAN_FTB55-v2_CDL1_SkelLoss-Coordinate-Only-Supervised-0.01_Finetune'],
-  # models: ['Raw_Incomplete_Trees',
+  models: ['Raw_Incomplete_Trees'],
+  # models: ['Raw_Incomplete_Trees', 
+  #         'AdaPoinTr_LB-Random_CDL1_Finetune', 
   #         'AdaPoinTr_FTB55-v2_CDL1_Finetune',
-  #         'AdaPoinTr_LTB81-v4_CDL1_Finetune',
-  #         'Generator2-AdaPoinTr-Skeleton-GAN_FTB55-v2_CDL1_SkelLoss-Supervised-0.01_Finetune',
-  #         'Generator2-AdaPoinTr-Skeleton-GAN_LTB81-v4_CDL1_SkelLoss-Supervised-0.01_Finetune',
-  #         'Generator2-AdaPoinTr-Skeleton-GAN_LTB81-v4_CDL1_SkelLoss-Supervised-0.01_Repulsion_CPC-2nd-Stage_Finetune'],
+  #         'Generator2-AdaPoinTr-Skeleton-GAN_FTB55-v2_CDL1_SkelLoss-Coordinate-Only-Supervised-0.01_Finetune', 
+  #         'Generator2-AdaPoinTr-Skeleton-GAN_FTB55-v2_CDL1_SkelLoss-Coordinate-Only-Supervised-0.01_Repulsion_CPC-2nd-Stage_Finetune']
   mode: Primary,
   num_tree: 9,
   exp_name: ,
@@ -86,6 +85,10 @@ segmentation: {
       noise_threshold: 10,
       merge_threshold: 0.2,
     },
+    ### this is to segment branches from raw point cloud
+    segmentation: {
+      voxel_size: 0.04            # points inside this voxel will be segmented
+    },
     # suggest to set them as default for TLS
     refinement: {
       sphere_radius: 0.02,
@@ -95,6 +98,7 @@ segmentation: {
   options: {
     DEBUG: False,                   # plot graph prior to MST
     LOGGING: False,                 # logging
+    SEGMENTATION: False,             # branch segmentation from raw pcd
     TRUNK_REFINEMENT: True,        # trunk skeleton refinement
     BRANCH_REFINEMENT: True,       # branch skeleton refinement
     SAVE_PARAS: True,               # save parameters for each tree
@@ -115,7 +119,7 @@ characterization: {
   options: {
     SHOW: True,                   # plot the branch number
     SHOW_BRANCH: False,            # plot the single branch characterization
-    SAVE: True,                    # save characterization results as csv files
+    SAVE: False,                    # save characterization results as csv files
     CLEAR: False,                  # clear everything
     OUTPUT: False,                 # output skeleton infor for Real2Sim data generation
     CHAR_ON: False                 # turn on characterization

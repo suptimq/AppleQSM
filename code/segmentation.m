@@ -1,26 +1,33 @@
-function [primary_branch_counter] = segmentation(data_folder, skel_folder, tree_id, exp_id, options)
+function [primary_branch_counter] = segmentation(skel_folder, tree_id, exp_id, options)
     % plot graph prior to MST
     DEBUG = options.DEBUG;
     % logging
     LOGGING = options.LOGGING;
+    % branch segmentation from raw point cloud
+    SEGMENTATION = options.SEGMENTATION;
     % skeleton refinement
     TRUNK_REFINEMENT = options.TRUNK_REFINEMENT;
     BRANCH_REFINEMENT = options.BRANCH_REFINEMENT;
     % plot and save figures
     SAVE_FIG = options.SAVE_FIG;
 
+    % find skeleton mat file
     skel_filename_format = '_contract_*_skeleton.mat';
     skel_filename = search_skeleton_file(tree_id, fullfile(skel_folder, exp_id), skel_filename_format);
     paras_filename = [exp_id '_parameters.mat'];
 
+    % load manual cropped branches for visualization
     branch_folder = fullfile(options.SEG_PARA.reference_branch_folder{1}, [tree_id '_branch']);
     files = dir(fullfile(branch_folder, 'Section*.ply'));
 
+    % prepare output folder
     output_folder = fullfile(skel_folder, '..', 'Segmentation', exp_id);
     log_folder = fullfile(output_folder, 'log');
     new_skel_folder = fullfile(skel_folder, '..', 'Segmentation', exp_id);
     log_filepath = fullfile(log_folder, [tree_id '_log']);
     paras_filepath = fullfile(output_folder, paras_filename);
+    % save segmented trunk and branch pcd files
+    segmented_folder = fullfile(output_folder, [tree_id '_branch']);
 
     if LOGGING
         diary logfile
@@ -375,6 +382,10 @@ function [primary_branch_counter] = segmentation(data_folder, skel_folder, tree_
 
         Link = linkprop([ax1, ax2], {'CameraUpVector', 'CameraPosition', 'CameraTarget', 'XLim', 'YLim', 'ZLim'});
         setappdata(gcf, 'StoreTheLink', Link);
+
+        if SEGMENTATION
+            pcwrite(trunk_pc, fullfile(segmented_folder, 'trunk.pcd'));
+        end
     end
 
     if isfield(P, 'trunk_cpc_optimized_center') && options.SEG_PARA.trunk.use_refined_trunk
@@ -919,6 +930,7 @@ function [primary_branch_counter] = segmentation(data_folder, skel_folder, tree_
     %%-------------------------------------------------------------------%%
     primary_branch_pts_idx = {}; % index in terms of P.spls
     primary_branch_counter = 0;
+    invalid_primary_branches = [];  % branches with primary branch identification failure
 
     for j = 1:branch_counter
         cur_branch_pts_idx = branch_pts_idx{j};
@@ -947,7 +959,8 @@ function [primary_branch_counter] = segmentation(data_folder, skel_folder, tree_
         for k = 1:size(branch_pts, 1)
             cur_branch_pts = branch_pts(k, :);
             [~, tmp] = ismember(cur_branch_pts, rest_pts, 'row'); % index in terms of rest_pts (which MST built upon)
-            [node, distance] = shortestpath(MST, string(branch_internode_index_in_rest_pts), string(tmp));
+            % TODO add safety when string(tmp) is not in MST
+            [node, distance] = shortestpath(MST, string(branch_internode_index_in_rest_pts), string(tmp)); 
 
             if isempty(node)
                 distance = 0;
@@ -957,7 +970,11 @@ function [primary_branch_counter] = segmentation(data_folder, skel_folder, tree_
             shortest_path_distance(k) = distance;
         end
 
-        assert(sum(shortest_path_distance) ~= 0, 'Not Found Any Valid Shortest Path in Primary Branch Identification');
+        % safety
+        if sum(shortest_path_distance) == 0
+            disp(['Branch ' num2str(j) ' Not Found Any Valid Shortest Path in Primary Branch Identification']);
+            invalid_primary_branches = [invalid_primary_branches, j];
+        end
         primary_branch_counter = primary_branch_counter + 1;
         [~, max_weight_idx] = max(shortest_path_distance);
         shortest_path_node = str2double(shortest_path_nodes{max_weight_idx}); % The node was already sorted based on its correponding distance to the source node
@@ -969,12 +986,61 @@ function [primary_branch_counter] = segmentation(data_folder, skel_folder, tree_
     ax1 = subplot(1, 2, 1);
     pcshow(pt, 'MarkerSize', 30); hold on
 
+    if SEGMENTATION
+        branch_pc_indices = [];
+    end
+
     for i = 1:primary_branch_counter
+        if any(invalid_primary_branches == i)
+            continue
+        end
         cur_branch_pts_idx = primary_branch_pts_idx{i};
         cur_branch_pts = P.spls(cur_branch_pts_idx, :);
         tmp_pts = cur_branch_pts(1, :);
         plot3(cur_branch_pts(:, 1), cur_branch_pts(:, 2), cur_branch_pts(:, 3), '.', 'Color', colors{rem(i, length(colors)) + 1}, 'MarkerSize', 20);
         text(tmp_pts(1), tmp_pts(2), tmp_pts(3) + 0.02, num2str(i), 'Color', 'red', 'HorizontalAlignment', 'left', 'FontSize', 12);
+
+        % segment indivudal branches from raw point cloud
+        if SEGMENTATION
+            if ~exist(segmented_folder, 'dir')
+                mkdir(segmented_folder);
+            end
+
+            voxel_size = options.SEG_PARA.branch.segmentation.voxel_size;
+            % iterate over each point in primary_branch_pts
+            branch_pc_list = [];
+            for m = 1:size(cur_branch_pts, 1)
+                % get current point
+                current_point = cur_branch_pts(m, :);
+                % fefine the bounds of the local voxel
+                % use a smaller voxel in the junction area
+                if m == 1
+                    factor = 2;
+                else
+                    factor = 1;
+                end
+                voxel_bounds = [current_point(1)-voxel_size/factor/2, current_point(1)+voxel_size/factor/2, ...
+                                                current_point(2)-voxel_size/factor/2, current_point(2)+voxel_size/factor/2, ...
+                                                current_point(3)-voxel_size/factor/2, current_point(3)+voxel_size/factor/2];
+                % select points within the voxel bounds from original_pcd
+                indices_within_voxel = findPointsInROI(original_pt_normalized, voxel_bounds);
+                pc_within_voxel = select(original_pt_normalized, indices_within_voxel);
+                branch_pc_indices = [branch_pc_indices; indices_within_voxel];
+                % for concatenation
+                branch_pc_list = [branch_pc_list, pc_within_voxel];
+            end
+            branch_pc = pccat(branch_pc_list);
+            % save branch_pc to a file
+            pcwrite(branch_pc, fullfile(segmented_folder, ['branch' num2str(i) '.pcd']));
+        end
+    end
+
+    if SEGMENTATION
+        copy_original_pt_location = original_pt_normalized.Location;
+        copy_original_pt_color = original_pt_normalized.Color;
+        copy_original_pt_location(branch_pc_indices, :) = [];
+        copy_original_pt_color(branch_pc_indices, :) = [];
+        pcwrite(pointCloud(copy_original_pt_location, 'Color', copy_original_pt_color), fullfile(segmented_folder, 'rest_branch.pcd'));
     end
 
     title(['Clusters: ', num2str(primary_branch_counter)], 'color', [1, 0, 0]);
@@ -1034,9 +1100,9 @@ function [primary_branch_counter] = segmentation(data_folder, skel_folder, tree_
         % branch_refinement_options.sphere_radius = 0.02;
         % branch_refinement_options.maximum_length = 0.004;
         % branch_refinement_options.cpc_num_points_threshold = 40;
-        branch_refinement_options.sphere_radius = options.SEG_PARA.branch.refinement.sphere_radius;;
+        branch_refinement_options.sphere_radius = options.SEG_PARA.branch.refinement.sphere_radius;
         branch_refinement_options.maximum_length = branch_refinement_options.sphere_radius / 5;
-        branch_refinement_options.cpc_num_points_threshold = options.SEG_PARA.branch.refinement.cpc_num_points_threshold;;
+        branch_refinement_options.cpc_num_points_threshold = options.SEG_PARA.branch.refinement.cpc_num_points_threshold;
 
         primary_branch_pc_list = [];
         primary_center = [];
@@ -1060,6 +1126,9 @@ function [primary_branch_counter] = segmentation(data_folder, skel_folder, tree_
         kdtree = KDTreeSearcher(original_pt_normalized_location);
 
         for i = 1:branch_counter
+            if any(invalid_primary_branches == i)
+                continue
+            end
             cur_branch_pts_idx = branch_pts_idx{i};
             cur_primary_branch_pts_idx = primary_branch_pts_idx{i};
             cur_side_branch_pts_idx = setdiff(cur_branch_pts_idx, cur_primary_branch_pts_idx);
