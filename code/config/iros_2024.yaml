@@ -1,10 +1,10 @@
 experiment: {
-  models: ['Raw_Incomplete_Trees'],
-  # models: ['Raw_Incomplete_Trees', 
-  #         'AdaPoinTr_LB-Random_CDL1_Finetune', 
-  #         'AdaPoinTr_FTB55-v2_CDL1_Finetune',
-  #         'Generator2-AdaPoinTr-Skeleton-GAN_FTB55-v2_CDL1_SkelLoss-Coordinate-Only-Supervised-0.01_Finetune', 
-  #         'Generator2-AdaPoinTr-Skeleton-GAN_FTB55-v2_CDL1_SkelLoss-Coordinate-Only-Supervised-0.01_Repulsion_CPC-2nd-Stage_Finetune']
+  models: ['Raw_Incomplete_Trees', 
+  'AdaPoinTr_LB-Random_CDL1_Finetune', 
+  'AdaPoinTr_FTB55-v2_CDL1_Finetune',
+  'Generator2-AdaPoinTr-Skeleton-GAN_FTB55-v2_CDL1_SkelLoss-Coordinate-Only-Supervised-0.01_Finetune',
+  'Generator2-AdaPoinTr-Skeleton-GAN_FTB55-v2_CDL1_SkelLoss-Coordinate-Only-Supervised-0.01_Repulsion_CPC-2nd-Stage_Finetune'],
+  # models: ['AdaPoinTr_FTB55-v2_CDL1_Finetune'],
   mode: Primary,
   num_tree: 9,
   exp_name: ,
@@ -27,6 +27,7 @@ skeleton: {
   ### this factor is IMPORTANT
   ### a large factor leads to sparse skeleton 
   sample_radius_factor: 0.006,
+  SKEL_ON: False
 }
 
 segmentation: {
@@ -103,7 +104,7 @@ segmentation: {
     BRANCH_REFINEMENT: True,       # branch skeleton refinement
     SAVE_PARAS: True,               # save parameters for each tree
     SAVE_FIG: True,                 # plot and save figures
-    SEG_ON: True                    # turn on segmentation
+    SEG_ON: False                    # turn on segmentation
   }
 }
 
@@ -119,9 +120,8 @@ characterization: {
   options: {
     SHOW: True,                   # plot the branch number
     SHOW_BRANCH: False,            # plot the single branch characterization
-    SAVE: False,                    # save characterization results as csv files
-    CLEAR: False,                  # clear everything
+    SAVE: True,                    # save characterization results as csv files
     OUTPUT: False,                 # output skeleton infor for Real2Sim data generation
-    CHAR_ON: False                 # turn on characterization
+    CHAR_ON: True                 # turn on characterization
   }
 }

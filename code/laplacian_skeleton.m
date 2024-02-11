@@ -1,54 +1,4 @@
-%% setting
-clear;clc;close all;
-path('plot', path);
-path('utility', path);
-path('subsample', path);
-path('skeleton', path);
-path('config', path);
-
-config = yaml.loadFile("config\iros_2024.yaml");
-
-%% load downsampling parameters
-options.bin_size = config.skeleton.bin_size;
-options.num_iteration = config.skeleton.num_iteration;
-options.downsample_num = config.skeleton.downsample_num;
-options.downsample_mode = config.skeleton.downsample_mode; 
-options.density_mode = config.skeleton.density_mode; 
-options.gridStep = config.skeleton.gridStep;
-options.USING_POINT_RING = GS.USING_POINT_RING;
-options.sample_radius_factor = config.skeleton.sample_radius_factor;
-
-% load experimental parameters
-pcd_extension = config.experiment.pcd_extension{1};
-data_folder = config.experiment.data_folder{1};
-models = config.experiment.models;
-mode  = config.experiment.mode{1};
-if yaml.isNull(config.experiment.exp_name)
-    exp_name='.';
-else
-    exp_name = config.experiment.exp_name;
-end
-exp_folder = config.experiment.exp_folder{1};
-
-%% loop models
-for k = 1:length(models)
-    model = models{k}{1};
-    tree_folder = fullfile(data_folder, model, mode);
-    skel_folder = fullfile(data_folder, model, mode, exp_folder, 'Skeleton');
-
-    pcd_files = dir(fullfile(tree_folder, ['*' pcd_extension]));
-    pcd_files = natsortfiles(pcd_files);
-    
-    % loop pcd_files
-    for i = 1:length(pcd_files)
-        filename = pcd_files(i).name;
-        filepath = pcd_files(i).folder;
-        disp(['=========Tree ' num2str(filename) ' ========='])
-        skeleton(filepath, skel_folder, exp_name, filename, options);
-    end
-end
-
-function [] = skeleton(data_folder, skel_folder, exp_name, filename_, options)
+function [] = laplacian_skeleton(data_folder, skel_folder, exp_name, filename_, options)
 
     close all;
 
@@ -58,11 +8,25 @@ function [] = skeleton(data_folder, skel_folder, exp_name, filename_, options)
         mkdir(save_folder)
     end
 
+    [~, tree_id, ~] = fileparts(filename_);
+    % find previous skeleton mat file
+    skel_filename_format = '_contract_*_skeleton.mat';
+    skel_filename = search_skeleton_file(tree_id, fullfile(skel_folder, exp_name), skel_filename_format);
+    if ~isnan(skel_filename)
+        skel_filepath = fullfile(skel_folder, exp_name, skel_filename);
+        % delete previous skeleton file
+        if exist(skel_filepath, 'file')
+            delete(skel_filepath);
+        end
+        if exist(skel_filepath(1:end-4), 'dir')
+            rmdir(skel_filepath(1:end-4), 's');
+        end
+    end
     P.filename = fullfile(save_folder, filename_); % which file we should run on
 
     %% Step 1: read file (point cloud), and subsample point cloud
     tic
-    original_pt = pcread([data_folder '/' filename_]);
+    original_pt = pcread(fullfile(data_folder, filename_));
     original_pt_location = original_pt.Location;
     original_pt_location_normalized = original_pt_location - mean(original_pt_location, 1);
     original_pt_normalized = pointCloud(original_pt_location_normalized, 'Color', original_pt.Color);
