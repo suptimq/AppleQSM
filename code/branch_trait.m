@@ -9,6 +9,10 @@ function T = branch_trait(skel_folder, tree_id, exp_id, excel_filename, matched_
     skel_filename_format = '_contract_*_skeleton.mat';
     new_skel_folder = fullfile(skel_folder, '..', 'Segmentation');
     skel_filename = search_skeleton_file(tree_id, fullfile(new_skel_folder, exp_id), skel_filename_format);
+    if isnan(skel_filename)
+        disp('===================Characterization Failure===================');
+        error([skel_filename 'Not Found']);
+    end
     output_folder = fullfile(skel_folder, '..', 'Characterization', exp_id);
     cad_save_folder = fullfile(skel_folder, '..', 'Fusion', exp_id);
 
@@ -244,10 +248,6 @@ function T = branch_trait(skel_folder, tree_id, exp_id, excel_filename, matched_
         T.Properties.VariableNames = {'Filename', 'Branch ID', 'Vertical_Croth_Angle-Degree', 'Primary_Branch_Diameter-mm', 'Branch_Height-cm', 'Branch_Length-cm'};
         branch_excel_filepath = fullfile(output_folder, [tree_id excel_filename]);
         writetable(T, branch_excel_filepath, 'Sheet', 'Branch_Level_Traits_1')
-    end
-
-    if CLEAR
-        clc; clear; close all;
     end
 
 end

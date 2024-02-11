@@ -1,4 +1,4 @@
-function [primary_branch_counter] = segmentation(skel_folder, tree_id, exp_id, options)
+function [primary_branch_counter] = segmentation(skel_folder, tree_id, exp_name, options)
     % plot graph prior to MST
     DEBUG = options.DEBUG;
     % logging
@@ -13,17 +13,21 @@ function [primary_branch_counter] = segmentation(skel_folder, tree_id, exp_id, o
 
     % find skeleton mat file
     skel_filename_format = '_contract_*_skeleton.mat';
-    skel_filename = search_skeleton_file(tree_id, fullfile(skel_folder, exp_id), skel_filename_format);
-    paras_filename = [exp_id '_parameters.mat'];
+    skel_filename = search_skeleton_file(tree_id, fullfile(skel_folder, exp_name), skel_filename_format);
+    if isnan(skel_filename)
+        disp('===================Characterization Failure===================');
+        error([skel_filename 'Not Found']);
+    end
+    paras_filename = [exp_name '_parameters.mat'];
 
     % load manual cropped branches for visualization
     branch_folder = fullfile(options.SEG_PARA.reference_branch_folder{1}, [tree_id '_branch']);
     files = dir(fullfile(branch_folder, 'Section*.ply'));
 
     % prepare output folder
-    output_folder = fullfile(skel_folder, '..', 'Segmentation', exp_id);
+    output_folder = fullfile(skel_folder, '..', 'Segmentation', exp_name);
     log_folder = fullfile(output_folder, 'log');
-    new_skel_folder = fullfile(skel_folder, '..', 'Segmentation', exp_id);
+    new_skel_folder = fullfile(skel_folder, '..', 'Segmentation', exp_name);
     log_filepath = fullfile(log_folder, [tree_id '_log']);
     paras_filepath = fullfile(output_folder, paras_filename);
     % save segmented trunk and branch pcd files
@@ -47,7 +51,7 @@ function [primary_branch_counter] = segmentation(skel_folder, tree_id, exp_id, o
     end
 
     %% load data
-    skel_filepath = fullfile(skel_folder, exp_id, skel_filename);
+    skel_filepath = fullfile(skel_folder, exp_name, skel_filename);
     new_skel_filepath = fullfile(new_skel_folder, skel_filename);
     load(skel_filepath, 'P'); % P results from skeleton operation
 
@@ -960,7 +964,11 @@ function [primary_branch_counter] = segmentation(skel_folder, tree_id, exp_id, o
             cur_branch_pts = branch_pts(k, :);
             [~, tmp] = ismember(cur_branch_pts, rest_pts, 'row'); % index in terms of rest_pts (which MST built upon)
             % TODO add safety when string(tmp) is not in MST
-            [node, distance] = shortestpath(MST, string(branch_internode_index_in_rest_pts), string(tmp)); 
+            if ismember(string(tmp), MST.Nodes.Name)
+                [node, distance] = shortestpath(MST, string(branch_internode_index_in_rest_pts), string(tmp));
+            else
+                continue
+            end
 
             if isempty(node)
                 distance = 0;
