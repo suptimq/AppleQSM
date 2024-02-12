@@ -1,32 +1,24 @@
-function T = branch_trait(skel_folder, tree_id, exp_id, excel_filename, matched_qsm_table, options)
+function T = branch_trait(skel_folder, output_folder, tree_id, matched_qsm_table, options)
 
     SHOW = options.SHOW;
     SHOW_BRANCH = options.SHOW_BRANCH;
     SAVE = options.SAVE;
-    CLEAR = options.CLEAR;
     OUTPUT = options.OUTPUT;
 
+    % output for CAD tree modeling
+    cad_save_folder = fullfile(output_folder, 'Fusion');
+    if ~exist(cad_save_folder, 'dir') && OUTPUT
+        mkdir(cad_save_folder)
+    end
+
     skel_filename_format = '_contract_*_skeleton.mat';
-    new_skel_folder = fullfile(skel_folder, '..', 'Segmentation');
-    skel_filename = search_skeleton_file(tree_id, fullfile(new_skel_folder, exp_id), skel_filename_format);
+    skel_filename = search_skeleton_file(tree_id, skel_folder, skel_filename_format);
     if isnan(skel_filename)
         disp('===================Characterization Failure===================');
         error([skel_filename 'Not Found']);
     end
-    output_folder = fullfile(skel_folder, '..', 'Characterization', exp_id);
-    cad_save_folder = fullfile(skel_folder, '..', 'Fusion', exp_id);
-
-    %% create folder to save results
-    if ~exist(output_folder, 'dir')
-        mkdir(output_folder)
-    end
-
-    if ~exist(cad_save_folder, 'dir')
-        mkdir(cad_save_folder)
-    end
-
     % load skeleton and segmentation information
-    skel_filepath = fullfile(new_skel_folder, exp_id, skel_filename);
+    skel_filepath = fullfile(skel_folder, skel_filename);
     load(skel_filepath, 'P'); % P results from skeleton operation
 
     start = 0;
@@ -246,7 +238,7 @@ function T = branch_trait(skel_folder, tree_id, exp_id, excel_filename, matched_
 
     if SAVE
         T.Properties.VariableNames = {'Filename', 'Branch ID', 'Vertical_Croth_Angle-Degree', 'Primary_Branch_Diameter-mm', 'Branch_Height-cm', 'Branch_Length-cm'};
-        branch_excel_filepath = fullfile(output_folder, [tree_id excel_filename]);
+        branch_excel_filepath = fullfile(output_folder, [tree_id '_branch_trait.xlsx']);
         writetable(T, branch_excel_filepath, 'Sheet', 'Branch_Level_Traits_1')
     end
 

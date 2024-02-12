@@ -1,8 +1,6 @@
-function [primary_branch_counter] = segmentation(skel_folder, tree_id, exp_name, options)
+function [primary_branch_counter] = segmentation(skel_folder, output_folder, tree_id, options)
     % plot graph prior to MST
     DEBUG = options.DEBUG;
-    % logging
-    LOGGING = options.LOGGING;
     % branch segmentation from raw point cloud
     SEGMENTATION = options.SEGMENTATION;
     % skeleton refinement
@@ -13,46 +11,23 @@ function [primary_branch_counter] = segmentation(skel_folder, tree_id, exp_name,
 
     % find skeleton mat file
     skel_filename_format = '_contract_*_skeleton.mat';
-    skel_filename = search_skeleton_file(tree_id, fullfile(skel_folder, exp_name), skel_filename_format);
+    skel_filename = search_skeleton_file(tree_id, skel_folder, skel_filename_format);
     if isnan(skel_filename)
         disp('===================Characterization Failure===================');
         error([skel_filename 'Not Found']);
-    end
-    paras_filename = [exp_name '_parameters.mat'];
+    end    
+    % save segmented trunk and branch pcd files
+    segmented_folder = fullfile(output_folder, [tree_id '_branch']);
+    % start logging output to the specified file
+    log_filepath = fullfile(output_folder, [tree_id '_log.txt']);
+    diary(log_filepath)
 
     % load manual cropped branches for visualization
     branch_folder = fullfile(options.SEG_PARA.reference_branch_folder{1}, [tree_id '_branch']);
     files = dir(fullfile(branch_folder, 'Section*.ply'));
 
-    % prepare output folder
-    output_folder = fullfile(skel_folder, '..', 'Segmentation', exp_name);
-    log_folder = fullfile(output_folder, 'log');
-    new_skel_folder = fullfile(skel_folder, '..', 'Segmentation', exp_name);
-    log_filepath = fullfile(log_folder, [tree_id '_log']);
-    paras_filepath = fullfile(output_folder, paras_filename);
-    % save segmented trunk and branch pcd files
-    segmented_folder = fullfile(output_folder, [tree_id '_branch']);
-
-    if LOGGING
-        diary logfile
-    end
-
-    %% create folder to save results
-    if ~exist(output_folder, 'dir')
-        mkdir(output_folder)
-    end
-
-    if ~exist(log_folder, 'dir')
-        mkdir(log_folder)
-    end
-
-    if ~exist(new_skel_folder, 'dir')
-        mkdir(new_skel_folder)
-    end
-
     %% load data
-    skel_filepath = fullfile(skel_folder, exp_name, skel_filename);
-    new_skel_filepath = fullfile(new_skel_folder, skel_filename);
+    skel_filepath = fullfile(skel_folder, skel_filename);
     load(skel_filepath, 'P'); % P results from skeleton operation
 
     % visualization purpose only and show the original point clouds
@@ -160,7 +135,7 @@ function [primary_branch_counter] = segmentation(skel_folder, tree_id, exp_name,
     P.inverse_weighted_graph = inverse_weighted_graph;
     P.inverse_weighted_graph_edge_weight = graph_weight;
     P.mst_spls_adj = MST_adj_matrix;
-    save(new_skel_filepath, 'P');
+    save(skel_filepath, 'P');
 
     %% compute the edge weights from each MST node to the root point
     % main trunk end point is the one with the maximum path density_weight
@@ -214,7 +189,7 @@ function [primary_branch_counter] = segmentation(skel_folder, tree_id, exp_name,
 
     P.coarse_main_trunk_pts = main_trunk_pts;
     P.coarse_main_trunk_pts_index = main_trunk_pts_idx;
-    save(new_skel_filepath, 'P');
+    save(skel_filepath, 'P');
 
     figure('Name', 'Coarse main trunk')
     pcshow(pt, 'markersize', 20); hold on
@@ -265,7 +240,7 @@ function [primary_branch_counter] = segmentation(skel_folder, tree_id, exp_name,
     rest_pts = P.spls(rest_pts_idx, :);
 
     P.all_branch_pts = rest_pts;
-    save(new_skel_filepath, 'P');
+    save(skel_filepath, 'P');
 
     disp(['main trunk refine range: ' num2str(main_trunk_refine_range)]);
 
@@ -345,7 +320,7 @@ function [primary_branch_counter] = segmentation(skel_folder, tree_id, exp_name,
     P.trunk_diameter_pts = largest_trunk_cluster_pts(inliers_idx, :);
     P.trunk_diameter_ellipse = ellipse;
     P.trunk_radius = trunk_radius;
-    save(new_skel_filepath, 'P');
+    save(skel_filepath, 'P');
 
     if TRUNK_REFINEMENT
         %%---------------------------------------------------%%
@@ -363,7 +338,7 @@ function [primary_branch_counter] = segmentation(skel_folder, tree_id, exp_name,
         P.trunk_cpc_optimized_radius = trunk_cpc_optimized_radius;
         P.trunk_cpc_optimized_confidence = trunk_cpc_optimized_confidence;
         P.trunk_pc = trunk_pc;
-        save(new_skel_filepath, 'P');
+        save(skel_filepath, 'P');
 
         disp(['xy radius: ' num2str(trunk_refinement_options.xy_radius)]);
         disp(['z radius: ' num2str(trunk_refinement_options.z_radius)]);
@@ -406,7 +381,7 @@ function [primary_branch_counter] = segmentation(skel_folder, tree_id, exp_name,
     ratio_distance_list = [0, cumsum(distance_list) / sum(distance_list)];
     P.main_trunk_length = sum(distance_list);
     P.trunk_internode_distance_ratio = ratio_distance_list;
-    save(new_skel_filepath, 'P');
+    save(skel_filepath, 'P');
 
     figure('Name', 'Refined main trunk')
     pcshow(pt, 'markersize', 20); hold on
@@ -484,20 +459,25 @@ function [primary_branch_counter] = segmentation(skel_folder, tree_id, exp_name,
 
     figure('Name', '1st DBSCAN clusters')
     ax1 = subplot(1, 2, 1);
-    pcshow(original_pt_normalized, 'MarkerSize', 30); hold on
+    pcshow(pt, 'MarkerSize', 30); hold on
     plot3(refined_main_trunk_pts(:, 1), refined_main_trunk_pts(:, 2), refined_main_trunk_pts(:, 3), '.r', 'markersize', 30);
     plot3(crotch_pts(:, 1), crotch_pts(:, 2), crotch_pts(:, 3), '.b', 'markersize', 30);
     title('Crotch points')
     xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
 
     ax2 = subplot(1, 2, 2);
-    pcshow(original_pt_normalized, 'markersize', 40); hold on
+    pcshow(pt, 'markersize', 40); hold on
     plot_dbscan_clusters(crotch_pts, cluster_label);
     xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
     title(['Initial clusters: ', num2str(length(unique_cluster_label))], 'color', [1, 0, 0]);
 
     Link = linkprop([ax1, ax2], {'CameraUpVector', 'CameraPosition', 'CameraTarget', 'XLim', 'YLim', 'ZLim'});
     setappdata(gcf, 'StoreTheLink', Link);
+
+    if SAVE_FIG
+        filename = fullfile(output_folder, [tree_id, '_cluster']);
+        saveas(gcf, filename);
+    end
 
     %%----------------------------------------------------------%%
     %%-------------------Post-Process Cluster-------------------%%
@@ -749,7 +729,7 @@ function [primary_branch_counter] = segmentation(skel_folder, tree_id, exp_name,
     P.branch_root_pts = valid_cluster_pts_list;
     P.branch_root_label = valid_cluster_pts_label;
     P.branch_counter = branch_counter;
-    save(new_skel_filepath, 'P');
+    save(skel_filepath, 'P');
 
     figure('Name', 'Branch count visualization')
     ax1 = subplot(1, 2, 1);
@@ -923,7 +903,7 @@ function [primary_branch_counter] = segmentation(skel_folder, tree_id, exp_name,
     P.entire_branch_pts = entire_branch_pts;
     P.entire_branch_label = entire_branch_label;
     P.entire_branch_counter = branch_counter;
-    save(new_skel_filepath, 'P');
+    save(skel_filepath, 'P');
 
     %%-------------------------------------------------------------------%%
     %%-------------------Primary Branch Identification-------------------%%
@@ -1234,7 +1214,7 @@ function [primary_branch_counter] = segmentation(skel_folder, tree_id, exp_name,
             invalid_radii = P.primary_branch_radius(invalid_primary_branch_index);
         end
 
-        save(new_skel_filepath, 'P');
+        save(skel_filepath, 'P');
         disp(['sphere radius: ' num2str(branch_refinement_options.sphere_radius)]);
         disp(['maximum length: ' num2str(branch_refinement_options.maximum_length)]);
         disp(['M: ' num2str(M)]);
@@ -1266,11 +1246,8 @@ function [primary_branch_counter] = segmentation(skel_folder, tree_id, exp_name,
     end
 
     disp('================Segmention Done================');
-
-    if LOGGING
-        diary off
-        movefile('logfile', log_filepath);
-    end
+    % stop logging
+    diary off
 
     close all;
 end

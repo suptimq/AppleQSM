@@ -1,17 +1,10 @@
 function [] = laplacian_skeleton(data_folder, skel_folder, exp_name, filename_, options)
-
     close all;
-
-    save_folder = fullfile(skel_folder, exp_name);
-
-    if ~exist(save_folder, 'dir')
-        mkdir(save_folder)
-    end
 
     [~, tree_id, ~] = fileparts(filename_);
     % find previous skeleton mat file
     skel_filename_format = '_contract_*_skeleton.mat';
-    skel_filename = search_skeleton_file(tree_id, fullfile(skel_folder, exp_name), skel_filename_format);
+    skel_filename = search_skeleton_file(tree_id, skel_folder, skel_filename_format);
     if ~isnan(skel_filename)
         skel_filepath = fullfile(skel_folder, exp_name, skel_filename);
         % delete previous skeleton file
@@ -22,7 +15,7 @@ function [] = laplacian_skeleton(data_folder, skel_folder, exp_name, filename_, 
             rmdir(skel_filepath(1:end-4), 's');
         end
     end
-    P.filename = fullfile(save_folder, filename_); % which file we should run on
+    P.filename = fullfile(skel_folder, filename_); % which file we should run on
 
     %% Step 1: read file (point cloud), and subsample point cloud
     tic
@@ -34,18 +27,18 @@ function [] = laplacian_skeleton(data_folder, skel_folder, exp_name, filename_, 
     P.original_pt_norm = mean(original_pt_location, 1);
     fprintf('number of points for original dataset: %d pts\n', original_pt_normalized.Count);
 
-    P.downsample_num = options.downsample_num;
+    P.downsample_num = options.SKEL_PARA.downsample_num;
 
     if P.downsample_num < original_pt_normalized.Count
-        if options.downsample_mode == 1
-            P.bin_size = options.bin_size;
-            P.num_iteration = options.num_iteration;
+        if options.SKEL_PARA.downsample_mode == 1
+            P.bin_size = options.SKEL_PARA.bin_size;
+            P.num_iteration = options.SKEL_PARA.num_iteration;
             downsample_pt_normalized = Hilbertcurve_method(P.num_iteration, P.bin_size, P.downsample_num, original_pt_normalized);
-        elseif options.downsample_mode == 2
+        elseif options.SKEL_PARA.downsample_mode == 2
             ratio = P.downsample_num / original_pt_normalized.Count;
             downsample_pt_normalized = pcdownsample(original_pt_normalized, 'random', ratio); % visualization purpose only!
         else
-            downsample_pt_normalized = pcdownsample(original_pt_normalized, 'gridAverage', options.gridStep);
+            downsample_pt_normalized = pcdownsample(original_pt_normalized, 'gridAverage', options.SKEL_PARA.gridStep);
         end
     else
         downsample_pt_normalized = original_pt_normalized;
@@ -58,7 +51,7 @@ function [] = laplacian_skeleton(data_folder, skel_folder, exp_name, filename_, 
     P.npts = size(P.pts, 1);
     [P.bbox, P.diameter] = GS.compute_bbox(P.pts);
 
-    if ~isempty(downsample_pt_normalized.Intensity) && (options.density_mode == 1)
+    if ~isempty(downsample_pt_normalized.Intensity) && (options.SKEL_PARA.density_mode == 1)
         P.density = downsample_pt_normalized.Intensity;
     else
         P.density = compute_density(P.npts, P.pts);
@@ -89,7 +82,7 @@ function [] = laplacian_skeleton(data_folder, skel_folder, exp_name, filename_, 
 
     %% Step 4: point to curve ?C by cluster ROSA2.0
     tic
-    P.sample_radius = P.diameter * options.sample_radius_factor;
+    P.sample_radius = P.diameter * options.SKEL_PARA.sample_radius_factor;
     P = rosa_lineextract(P, P.sample_radius, 1);
     fprintf('to curve:\n');
     toc

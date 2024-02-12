@@ -1,24 +1,43 @@
+### ====================================== ###
+###               Attention                ###
+### ====================================== ###
+# The overall data folder structure looks like
+# exp_folder
+#   skeleton_folder:
+#     exp_name
+#   segmentation_folder:
+#     exp_name
+#   characterization_folder:
+#     exp_name
+
 experiment: {
-  models: ['Raw_Incomplete_Trees', 
-  'AdaPoinTr_LB-Random_CDL1_Finetune', 
-  'AdaPoinTr_FTB55-v2_CDL1_Finetune',
-  'Generator2-AdaPoinTr-Skeleton-GAN_FTB55-v2_CDL1_SkelLoss-Coordinate-Only-Supervised-0.01_Finetune',
-  'Generator2-AdaPoinTr-Skeleton-GAN_FTB55-v2_CDL1_SkelLoss-Coordinate-Only-Supervised-0.01_Repulsion_CPC-2nd-Stage_Finetune'],
-  # models: ['AdaPoinTr_FTB55-v2_CDL1_Finetune'],
-  mode: Primary,
+  # models: ['Raw_Incomplete_Trees', 
+  # 'AdaPoinTr_LB-Random_CDL1_Finetune', 
+  # 'AdaPoinTr_FTB55-v2_CDL1_Finetune',
+  # 'Generator2-AdaPoinTr-Skeleton-GAN_FTB55-v2_CDL1_SkelLoss-Coordinate-Only-Supervised-0.01_Finetune',
+  # 'Generator2-AdaPoinTr-Skeleton-GAN_FTB55-v2_CDL1_SkelLoss-Coordinate-Only-Supervised-0.01_Repulsion_CPC-2nd-Stage_Finetune'],
+  models: ['Raw_Incomplete_Trees'],
+  mode: Primary,                    # customization
   num_tree: 9,
-  exp_name: ,
   exp_folder: AppleQSM,
+  exp_name: ,                       # leave it empty if you dont want a specific one
+  skeleton_folder: Skeleton,
+  segmentation_folder: Segmentation\Test,
+  characterization_folder: Characterization,
   data_folder: E:\Result\LLC_02022022\Row13,
   pcd_extension: .pcd,
-  mat_extension: .mat
+  mat_extension: .mat,
+  # switch
+  SKEL_ON: False,                     # turn on skeletonization
+  SEG_ON: True,                     # turn on segmentation
+  CHAR_ON: False,                    # turn on characterization
 }
 
 skeleton: {
   bin_size: 5,
   num_iteration: 7,
   downsample_num: 50000,
-  downsample_mode: 1,                 # 1-Hilbert Curve, 2-Random, 3-Grid
+  downsample_mode: 2,                 # 1-Hilbert Curve, 2-Random, 3-Grid
   density_mode: 2,                    # 1-Hilbert Curve, 2-KNN
   gridStep: 0.0048,                   # if use Grid subsampling
   ### ====================================== ###
@@ -27,7 +46,6 @@ skeleton: {
   ### this factor is IMPORTANT
   ### a large factor leads to sparse skeleton 
   sample_radius_factor: 0.006,
-  SKEL_ON: False
 }
 
 segmentation: {
@@ -69,8 +87,13 @@ segmentation: {
     branch_seg_dbscan_eps_factor: 1.5,
     branch_seg_dbscan_min_samples: 3,
     post_process_cluster: {
-      line_distance_threshold: 0.06,
+      ### ====================================== ###
+      ###               Attention                ###
+      ### ====================================== ###
       # the larger number is the looser the constraint is
+      # the 1st is line-to-line distance threshold
+      # the 2nd is the factor for point-to-point distance
+      line_distance_threshold: 1,
       point_distance_threshold_factor: 100,
       # if ransac failed to fit sliced_trunk, increase the z_search_range or minimum_trunk_points
       z_search_range: 0.1,
@@ -98,13 +121,11 @@ segmentation: {
   },
   options: {
     DEBUG: False,                   # plot graph prior to MST
-    LOGGING: False,                 # logging
     SEGMENTATION: False,             # branch segmentation from raw pcd
-    TRUNK_REFINEMENT: True,        # trunk skeleton refinement
-    BRANCH_REFINEMENT: True,       # branch skeleton refinement
+    TRUNK_REFINEMENT: False,        # trunk skeleton refinement
+    BRANCH_REFINEMENT: False,       # branch skeleton refinement
     SAVE_PARAS: True,               # save parameters for each tree
     SAVE_FIG: True,                 # plot and save figures
-    SEG_ON: False                    # turn on segmentation
   }
 }
 
@@ -122,6 +143,5 @@ characterization: {
     SHOW_BRANCH: False,            # plot the single branch characterization
     SAVE: True,                    # save characterization results as csv files
     OUTPUT: False,                 # output skeleton infor for Real2Sim data generation
-    CHAR_ON: True                 # turn on characterization
   }
 }
