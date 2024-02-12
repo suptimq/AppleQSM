@@ -4,7 +4,9 @@ function [vector, inliers, outliers] = ransac_py(pts, model, min_samples, residu
     [vector, inliers, outliers] = pyrunfile("ransac_.py", ["vector", "inliers", "outliers"], ...
                                             value = py.numpy.array(pts), model = py.str(model), min_samples = py.int(min_samples), ...
                                             residual_threshold = py.float(residual_threshold), max_trials = py.int(max_trials));
-    if py.NoneType == vector
+    % might raise error related to py.None Not Found.
+    % test py.None in the Command Window
+    if py.None == vector
         vector = nan; inliers = nan; outliers = nan;
     else
         vector = double(vector); inliers = double(inliers); outliers = double(outliers);
