@@ -1,4 +1,4 @@
-function T = branch_trait(skel_folder, output_folder, tree_id, matched_qsm_table, options)
+function T = branch_trait(seg_folder, output_folder, tree_id, matched_qsm_table, options)
 
     SHOW = options.SHOW;
     SHOW_BRANCH = options.SHOW_BRANCH;
@@ -12,13 +12,15 @@ function T = branch_trait(skel_folder, output_folder, tree_id, matched_qsm_table
     end
 
     skel_filename_format = '_contract_*_skeleton.mat';
-    skel_filename = search_skeleton_file(tree_id, skel_folder, skel_filename_format);
+    skel_filename = search_skeleton_file(tree_id, seg_folder, skel_filename_format);
     if isnan(skel_filename)
         disp('===================Characterization Failure===================');
         error([skel_filename 'Not Found']);
     end
+    log_filepath = fullfile(output_folder, [tree_id '_log.txt']);
+    diary(log_filepath)
     % load skeleton and segmentation information
-    skel_filepath = fullfile(skel_folder, skel_filename);
+    skel_filepath = fullfile(seg_folder, skel_filename);
     load(skel_filepath, 'P'); % P results from skeleton operation
 
     start = 0;
@@ -50,9 +52,9 @@ function T = branch_trait(skel_folder, output_folder, tree_id, matched_qsm_table
         end
         % plot
         pcshow(offset_pc, 'markersize', 30)
-        set(gcf, 'color', 'white'); set(gca, 'color', 'white')
+        set(gcf, 'color', 'white'); set(gca, 'color', 'white');
         hold on
-        text(top_point(1), top_point(2), 2.5, tree_id, 'Color', 'Black', 'HorizontalAlignment', 'center', 'FontSize', 15);
+%         text(top_point(1), top_point(2), 2.5, tree_id, 'Color', 'Black', 'HorizontalAlignment', 'center', 'FontSize', 15);
     end
 
     %% characterization
@@ -62,9 +64,11 @@ function T = branch_trait(skel_folder, output_folder, tree_id, matched_qsm_table
 
     branch_internode_ratio = [];
     branch_angle_list = [];
-    branch_diameter_list = [];
-    branch_pts_cell = {};
+    branch_radius_list = [];
+    branch_node_list = [];
     branch_pts_radius_cell = {};
+    branch_length_cell = {};
+    branch_pts_cell = {};
 
     for i = 1:branch_counter
         primary_branch_pts_size = P.primary_center_size(i);
@@ -142,40 +146,13 @@ function T = branch_trait(skel_folder, output_folder, tree_id, matched_qsm_table
             gt_branch_diameter = nan;
         end
 
-        % assign colors to points
-        branch_color = zeros(length(index), 3); % Initialize with default color
-
-        % radius unit - mm, lenght unit - m
-        if (radius > 10) && (cut_branch_counter < 2)
-            cut_branch_counter = cut_branch_counter + 1;
-            % find the cutting point index
-            cutting_point_index = find(primary_branch_length > 0.1, 1);
-            %% check if it is FP or TP
-%             if (isnan(gt_branch_diameter)) || (gt_branch_diameter > 20)
-%                 status_color = [1, 0, 0];             % TP FP [1, 0.6, 0]
-%             else
-%                 status_color = [1, 0.6, 0]; 
-%             end
-            status_color = [1, 0, 0];
-            branch_color(cutting_point_index+1:end, :) = repmat(status_color, length(index) - cutting_point_index, 1); % Red color for points after cutting point
-        elseif primary_branch_length(end) > 0.4
-            % find the cutting point index
-            cutting_point_index = find(primary_branch_length > 0.4, 1);
-            status_color = [0, 0, 1];
-            branch_color(cutting_point_index+1:end, :) = repmat(status_color, length(index) - cutting_point_index, 1); % Red color for points after cutting point
-        else
-            cutting_point_index = length(index);
-        end
-        % set the color of rest of points to green
-        branch_color(1:cutting_point_index, :) = repmat([0, 1, 0], cutting_point_index, 1); % Default color (blue) for points before cutting point
-
-        if OUTPUT
-            branch_internode_ratio = [branch_internode_ratio, ratio_distance];
-            branch_angle_list = [branch_angle_list, vertical_angle];
-            branch_diameter_list = [branch_diameter_list, radius];
-            branch_pts_cell{end+1} = primary_spline_pts;
-            branch_pts_radius_cell{end+1} = primary_spline_pts_radius;
-        end
+        branch_internode_ratio = [branch_internode_ratio, ratio_distance];
+        branch_angle_list = [branch_angle_list, vertical_angle];
+        branch_radius_list = [branch_radius_list, radius];
+        branch_length_cell{end+1} = primary_branch_length;
+        branch_pts_cell{end+1} = primary_spline_pts;
+        branch_node_list = [branch_node_list; primary_spline_pts(1,:)];
+        branch_pts_radius_cell{end+1} = primary_spline_pts_radius;
 
         if SHOW_BRANCH
             figure('Name', ['Branch ', num2str(i), ' spline'])
@@ -211,14 +188,6 @@ function T = branch_trait(skel_folder, output_folder, tree_id, matched_qsm_table
             title('Branch skeleton points radius hitogram')
         end
 
-        if SHOW
-            text_loc = 1;
-            figure(100)
-            scatter3(primary_spline_pts(:, 1), primary_spline_pts(:, 2) + y_offset, primary_spline_pts(:, 3),  50, branch_color, 'filled'); hold on
-            text(primary_spline_pts(text_loc, 1)+0.05, primary_spline_pts(text_loc, 2)+y_offset+0.05, primary_spline_pts(text_loc, 3)+0.05, num2str(i), 'Color', 'red', 'HorizontalAlignment', 'left', 'FontSize', 12);
-            % plot3(primary_branch_pts(:, 1), primary_branch_pts(:, 2), primary_branch_pts(:, 3), '.b', 'Markersize', 20);
-        end
-
         if SAVE
             T = [T; {tree_id, num2str(i), num2str(vertical_angle, '%.2f'), num2str(radius*2, '%.2f'), num2str(branch_internode_height*100, '%.2f'), num2str(primary_branch_length(end)*100, '%.2f')}];
         end
@@ -227,19 +196,56 @@ function T = branch_trait(skel_folder, output_folder, tree_id, matched_qsm_table
         spline_start = spline_start + primary_spline_pts_size;
     end
 
+    %% pruning determination
+    % 1. Cut a maximum of two branches
+    % 2. Identify all branches whose diameter is larger than 2cm
+    % 3. Remove the largest branch
+    % 4. Prioritize top branches for the rest of target branches
+    text_loc = 1;
+    cut_branch_indices  = branch_pruning(branch_radius_list, branch_node_list);
+    for i = 1:branch_counter
+        branch_pts = branch_pts_cell{i};
+        num_branch_pts = size(branch_pts, 1);
+        primary_branch_length = branch_length_cell{i};
+        branch_color = zeros(num_branch_pts, 3); % Initialize with default color
+        if ismember(i, cut_branch_indices)
+            % find the cutting point index by length
+            cutting_point_index = find(primary_branch_length > 0.1, 1);
+            % assign colors to points
+            status_color = [1, 0, 0]; 
+            branch_color(cutting_point_index+1:end, :) = repmat(status_color, num_branch_pts - cutting_point_index, 1); % Red color for points after cutting point
+        elseif primary_branch_length(end) > 0.4
+            % find the cutting point index by length
+            cutting_point_index = find(primary_branch_length > 0.4, 1);
+            status_color = [0, 0, 1];
+            branch_color(cutting_point_index+1:end, :) = repmat(status_color, num_branch_pts - cutting_point_index, 1); % Blue color for points after cutting point
+        else
+            cutting_point_index = num_branch_pts;
+        end
+        branch_color(1:cutting_point_index, :) = repmat([0, 1, 0], cutting_point_index, 1); % Default color (green) for points before cutting point
+        figure(100)
+        scatter3(branch_pts(:, 1), branch_pts(:, 2) + y_offset, branch_pts(:, 3),  50, branch_color, 'filled'); hold on
+        text(branch_pts(text_loc, 1), branch_pts(text_loc, 2)+y_offset+0.05, branch_pts(text_loc, 3)+0.05, num2str(i), 'Color', 'red', 'HorizontalAlignment', 'left', 'FontSize', 12);
+    end
+
+    %% output for CAD modeling
     if OUTPUT
         P.branch_internode_ratio = branch_internode_ratio;
-        P.branch_diameter = branch_diameter_list;
+        P.branch_diameter = branch_radius_list;
         P.branch_angle = branch_angle_list;
         P.branch_pts_list = branch_pts_cell;
         P.branch_pts_radius_list = branch_pts_radius_cell;
         save(fullfile(cad_save_folder, skel_filename), 'P');
     end
 
+    %% save branch trait
     if SAVE
         T.Properties.VariableNames = {'Filename', 'Branch ID', 'Vertical_Croth_Angle-Degree', 'Primary_Branch_Diameter-mm', 'Branch_Height-cm', 'Branch_Length-cm'};
         branch_excel_filepath = fullfile(output_folder, [tree_id '_branch_trait.xlsx']);
         writetable(T, branch_excel_filepath, 'Sheet', 'Branch_Level_Traits_1')
     end
+
+    % stop logging
+    diary off
 
 end

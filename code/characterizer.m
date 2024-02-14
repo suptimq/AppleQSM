@@ -109,7 +109,7 @@ for i = 1:length(models)
             mkdir(segmentation_folder);
         end
         copyfile(config_filepath, segmentation_folder);
-        for k = 5
+        for k = 1:length(mat_files)
             file = mat_files(k).name;
             [filepath, name, ext] = fileparts(file);
             split_file = split(name, '_');
@@ -138,7 +138,7 @@ for i = 1:length(models)
     end
     
     if options.CHAR_ON
-
+        segmentation_folder = fullfile(data_folder, model, mode, exp_folder, segmentation_folder, exp_name);
         characterization_folder = fullfile(data_folder, model, mode, exp_folder, characterization_folder, exp_name);
         % copy config to characterization folder
         if ~exist(characterization_folder, "dir")
@@ -160,7 +160,7 @@ for i = 1:length(models)
             split_file = split(name, '_');
             tree_id = split_file{1};
             disp(['=========Tree ' num2str(tree_id) ' ========='])
-            nt = branch_trait(skel_folder, characterization_folder, tree_id, matched_qsm_table, options);
+            nt = branch_trait(segmentation_folder, characterization_folder, tree_id, matched_qsm_table, options);
             if k == 1
                 T = nt;
             else
@@ -169,6 +169,8 @@ for i = 1:length(models)
         end
 
         if options.SHOW
+            % hide ticks and axis
+            set(gca, 'xtick', [], 'ytick', [], 'ztick', []); axis off;
             % maximize the figure window to fullscreen
             set(gcf, 'WindowState', 'maximized');
             % upfront  view
