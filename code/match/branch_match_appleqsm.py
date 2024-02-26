@@ -8,18 +8,20 @@ from scipy.optimize import linear_sum_assignment
 # Load data from local CSV files
 df1 = pd.read_csv(r"E:\Result\LLC_02022022\Row13\AppleQSM\Branch_Trait.csv")
 
-model_names = [r"Raw_Incomplete_Trees",
-               r"AdaPoinTr_FTB55-v2_CDL1_Finetune",
-               r"AdaPoinTr_LTB81-v4_CDL1_Finetune",
-               r"Generator2-AdaPoinTr-Skeleton-GAN_FTB55-v2_CDL1_SkelLoss-Supervised-0.01_Finetune",
-               r"Generator2-AdaPoinTr-Skeleton-GAN_LTB81-v4_CDL1_SkelLoss-Supervised-0.01_Finetune"]
+# model_names = [r"Raw_Incomplete_Trees",
+#                r"AdaPoinTr_LB-Random_CDL1_Finetune", 
+#                r"AdaPoinTr_FTB55-v2_CDL1_Finetune",
+#                r"Generator2-AdaPoinTr-Skeleton-GAN_FTB55-v2_CDL1_SkelLoss-Coordinate-Only-Supervised-0.01_Finetune",
+#                r"Generator2-AdaPoinTr-Skeleton-GAN_FTB55-v2_CDL1_SkelLoss-Coordinate-Only-Supervised-0.01_Repulsion_CPC-2nd-Stage_Finetune"]
+
+model_names = [r"Generator2-AdaPoinTr-Skeleton-GAN_FTB55-v2_CDL1_SkelLoss-Coordinate-Only-Supervised-0.01_Repulsion_CPC-2nd-Stage_Finetune"]
 
 for model_name in model_names:
-    df2 = pd.read_csv(rf"E:\Result\LLC_02022022\Row13\{model_name}\Primary\AppleQSM\Characterization\hc_downsample_iter_7\Branch_Trait.csv")
+    df2 = pd.read_csv(rf"E:\Result\LLC_02022022\Row13\{model_name}\Primary\AppleQSM\Characterization\Branch_Trait.csv")
     # Extract the features for comparison
     features = ['Vertical_Croth_Angle-Degree', 'Branch_Height-cm']
 
-    matched_filepath = rf"E:\Result\LLC_02022022\Row13\{model_name}\Primary\AppleQSM\Characterization\hc_downsample_iter_7\3DGAC_Matched_Branch_Trait.csv"
+    matched_filepath = rf"E:\Result\LLC_02022022\Row13\{model_name}\Primary\AppleQSM\Characterization\3DGAC_Matched_Branch_Trait.csv"
 
     # Initialize an empty DataFrame to store the results
     result_df = pd.DataFrame()
@@ -42,8 +44,10 @@ for model_name in model_names:
             # Solve the assignment problem using the Hungarian algorithm
             row_indices, col_indices = linear_sum_assignment(cost_matrix)
 
+            ### Attention ###
+            ### might need to change columns
             # Create new columns in tree_df1 and fill in values from tree_df2 based on the optimal assignment
-            for column in tree_df2.columns[:-1]:
+            for column in tree_df2.columns[1:]:
 
                 # Ensure lengths match before assignment
                 if len(col_indices) == len(tree_df1):
