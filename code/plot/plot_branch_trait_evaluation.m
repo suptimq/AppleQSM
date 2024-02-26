@@ -1,19 +1,18 @@
-extension = '.mat';
-data_folder = 'E:\Result\LLC_02022022\Row13';
-% models = {'Raw_Incomplete_Trees';
-%                      'AdaPoinTr_FTB55-v2_CDL1_Finetune';
-%                      'AdaPoinTr_LTB81-v4_CDL1_Finetune';
-%                      'Generator2-AdaPoinTr-Skeleton-GAN_FTB55-v2_CDL1_SkelLoss-Supervised-0.01_Finetune';
-%                      'Generator2-AdaPoinTr-Skeleton-GAN_LTB81-v4_CDL1_SkelLoss-Supervised-0.01_Finetune';
-%                      'Generator2-AdaPoinTr-Skeleton-GAN_LTB81-v4_CDL1_SkelLoss-Supervised-0.01_Repulsion_CPC-2nd-Stage_Finetune'};
+config = yaml.loadFile("config\iros_2024.yaml");
 
-models = { 'AdaPoinTr_FTB55-v2_CDL1_Finetune';
-                    'Generator2-AdaPoinTr-Skeleton-GAN_FTB55-v2_CDL1_SkelLoss-Supervised-0.01_Finetune';};
-
-mode  = 'Primary';
+extension = config.experiment.mat_extension{1};
+data_folder = config.experiment.data_folder{1};
+models = config.experiment.models;
+mode  = config.experiment.mode{1};
+if yaml.isNull(config.experiment.exp_name)
+    exp_name='.';
+else
+    exp_name = config.experiment.exp_name;
+end
+exp_folder = config.experiment.exp_folder{1};
 intercept = false;
 
-result_folder = fullfile(data_folder, 'AppleQSM2');
+result_folder = fullfile(data_folder, exp_folder);
 
 % Initialize arrays to store R-squared values
 model_names = {};
@@ -27,7 +26,7 @@ for i = 1:length(models)
     model = models{i}; % Get the current model name
     
     % Construct the file path to the CSV file containing the data for the current model
-    csv_filepath = fullfile(data_folder, model, mode, 'AppleQSM/Characterization/hc_downsample_iter_7/3DGAC_Matched_Branch_Trait.csv');
+    csv_filepath = fullfile(data_folder, model, mode, exp_folder, exp_name, 'Characterization', '3DGAC_Matched_Branch_Trait.csv');
     
     % Read the CSV file into a table
     T = readtable(csv_filepath);
