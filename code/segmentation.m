@@ -168,21 +168,9 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
         shortest_path_distance(i) = distance;
     end
 
-    maxk_counter = 1;
-    z_threshold = options.SEG_PARA.trunk.z_threshold;
-    z_difference = ones(z_threshold, 1) * -1;
-    [~, maxk_index] = maxk(shortest_path_distance, size(P.spls, 1));
-    while sum(z_difference < 0) >= z_threshold
-        main_trunk_pts_idx = shortest_path_nodes{maxk_index(maxk_counter)}';
-        main_trunk_pts = P.spls(main_trunk_pts_idx, :);
-        
-        main_trunk_pts_right_shift = main_trunk_pts;
-        main_trunk_pts_right_shift(1, :) = [];
-        main_trunk_pts_right_shift(end+1, :) = [0, 0, 0];
-        z_difference = main_trunk_pts_right_shift(:, 3) - main_trunk_pts(:, 3);
-        maxk_counter = maxk_counter + 1;
-    end
-
+    [~, max_index] = max(shortest_path_distance);
+    main_trunk_pts_idx = shortest_path_nodes{max_index}';
+    main_trunk_pts = P.spls(main_trunk_pts_idx, :);
     main_trunk_endpoint = main_trunk_pts(end, :);
     main_trunk_pts = sortrows(main_trunk_pts, 3); % sort by height
     [~, main_trunk_pts_idx] = ismember(main_trunk_pts, P.spls, 'row');
@@ -203,7 +191,6 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
     disp(['root point search range: ' num2str(root_point_search_range)]);
 
     disp(['graph edge coefficient alpha2: ' num2str(coefficient_density_weight)]);
-    disp(['z threshold: ' num2str(z_threshold)]);
 
     % main trunk refinement (heritage issue)
     disp('===================Trunk Skeleton Refinement (Heritage)===================');
