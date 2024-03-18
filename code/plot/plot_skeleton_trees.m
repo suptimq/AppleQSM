@@ -58,3 +58,20 @@ saveas(gcf, fullfile(folder_path, 'skel_top.png'));
 % Turn off hold
 hold off;
 axis equal;
+
+%% Set up the video writer
+video_filepath = fullfile(folder_path, 'tree_skeleton.avi');
+writerObj = VideoWriter(video_filepath); % specify the file name and format
+writerObj.FrameRate = 10; % set the frame rate (frames per second)
+open(writerObj); % open the video writer
+
+% capture each frame of the plot and write it to the video file
+for t = 1:100 % Change the range as needed
+    % rotate the plot for each frame (optional)
+    view(3*t, 20);
+    % capture the current frame
+    frame = getframe(gcf);
+    % write the frame to the video file
+    writeVideo(writerObj, frame);
+end
+close(writerObj); % close the video writer
