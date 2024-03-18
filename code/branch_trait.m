@@ -1,4 +1,4 @@
-function T = branch_trait(seg_folder, output_folder, tree_id, matched_qsm_table, options)
+function [T, branch_fig_gcf] = branch_trait(seg_folder, output_folder, tree_id, matched_qsm_table, options)
 
     SHOW = options.SHOW;
     SHOW_BRANCH = options.SHOW_BRANCH;
@@ -30,9 +30,13 @@ function T = branch_trait(seg_folder, output_folder, tree_id, matched_qsm_table,
     branch_counter = length(P.primary_center_size);
 
     %% tree visualization
+    branch_pruning_fig = nan;
+    pruned_branch_fig = nan;
+
     if SHOW
-        branch_number_fig = figure(100);
-        set(branch_number_fig, 'Name', 'Branch Mapping', 'Color', 'white');
+        branch_pruning_fig = figure(100);
+        set(branch_pruning_fig, 'Name', 'Branch Mapping', 'Color', 'white');
+
         % calculate y offset (1 m)
         y_offset = (str2double(tree_id(5:end))-1) * 1;
         % offset y to align with orchard setup
@@ -51,6 +55,8 @@ function T = branch_trait(seg_folder, output_folder, tree_id, matched_qsm_table,
             offset_pc = pcdownsample(offset_pc, 'random', ratio); % visualization purpose only!
         end
         % plot
+
+        figure(100)
         pcshow(offset_pc, 'markersize', 30)
         set(gcf, 'color', 'white'); set(gca, 'color', 'white');
         hold on
@@ -202,7 +208,11 @@ function T = branch_trait(seg_folder, output_folder, tree_id, matched_qsm_table,
     % 3. Remove the largest branch
     % 4. Prioritize top branches for the rest of target branches
     text_loc = 1;
+    sphere_radius = 0.03; % define the radius of the sphere for visualization of pruning
+    new_branches = cell(branch_counter, 1);
+    cut_branch_pts = cell(branch_counter, 1);
     cut_branch_indices  = branch_pruning(branch_radius_list, branch_node_list);
+    cut_branch_pc_list = [];
     for i = 1:branch_counter
         branch_pts = branch_pts_cell{i};
         num_branch_pts = size(branch_pts, 1);
@@ -222,11 +232,57 @@ function T = branch_trait(seg_folder, output_folder, tree_id, matched_qsm_table,
         else
             cutting_point_index = num_branch_pts;
         end
+        % update colors
         branch_color(1:cutting_point_index, :) = repmat([0, 1, 0], cutting_point_index, 1); % Default color (green) for points before cutting point
-        figure(100)
-        scatter3(branch_pts(:, 1), branch_pts(:, 2) + y_offset, branch_pts(:, 3),  50, branch_color, 'filled'); hold on
-        text(branch_pts(text_loc, 1), branch_pts(text_loc, 2)+y_offset+0.05, branch_pts(text_loc, 3)+0.05, num2str(i), 'Color', 'red', 'HorizontalAlignment', 'left', 'FontSize', 12);
+        % save for the visualization of pruned tree
+        new_branch_pts = branch_pts(1:cutting_point_index, :);
+        new_branches{i} = new_branch_pts;
+        cut_branch_pts{i} = branch_pts(cutting_point_index+1:end, :);
+        % Remove points within the sphere of cut_branch_pts from offset_pc
+        if ~isempty(cut_branch_pts{i})
+            cut_branch = cut_branch_pts{i};
+            for ic=1:size(cut_branch, 1)
+                sphere_center = cut_branch(ic, :); % center of the sphere
+                % Define the boundaries of the cuboid that encloses the sphere
+                xmin = sphere_center(1) - sphere_radius; xmax = sphere_center(1) + sphere_radius;
+                ymin = sphere_center(2) - sphere_radius; ymax = sphere_center(2) + sphere_radius;
+                zmin = sphere_center(3) - sphere_radius; zmax = sphere_center(3) + sphere_radius;
+                roi = [xmin, xmax, ymin+y_offset, ymax+y_offset, zmin, zmax];
+                indices_within_sphere = findPointsInROI(offset_pc, roi);
+                roi_pc = select(offset_pc, indices_within_sphere);
+                cut_branch_pc_list = [cut_branch_pc_list; roi_pc];
+            end
+        end
+
+        if SHOW
+            figure(100)
+            scatter3(branch_pts(:, 1), branch_pts(:, 2)+y_offset, branch_pts(:, 3),  50, branch_color, 'filled'); hold on
+            text(branch_pts(text_loc, 1), branch_pts(text_loc, 2)+y_offset+0.05, branch_pts(text_loc, 3)+0.05, num2str(i), 'Color', 'red', 'HorizontalAlignment', 'left', 'FontSize', 12);
+    %         figure(101);
+    %         scatter3(new_branch_pts(:, 1), new_branch_pts(:, 2) + y_offset, new_branch_pts(:, 3),  50); hold on
+        end
     end
+    
+    cut_branch_pc = pccat(cut_branch_pc_list);
+    % Extract the XYZ coordinates of points in cut_branch_pc
+    cut_points = cut_branch_pc.Location;
+    % Logical indexing to find points in ori_branch_pc that are not in cut_branch_pc
+    keep_indices = ~ismember(offset_pc.Location, cut_points, 'rows');
+    % Create a new point cloud with points from ori_branch_pc that are not in cut_branch_pc
+    pruned_branch_pc = select(offset_pc, find(keep_indices));
+    % Remove points at the VERY end of branches
+    denoised_pruned_branch_pc = pcdenoise(pruned_branch_pc);
+
+    if SHOW
+        pruned_branch_fig = figure(101);
+        set(pruned_branch_fig, 'Name', 'Pruned Branch Mapping', 'Color', 'white');
+        
+        pcshow(denoised_pruned_branch_pc, 'markersize', 30)
+        set(gcf, 'color', 'white'); set(gca, 'color', 'white');
+        hold on
+    end
+
+    branch_fig_gcf = [branch_pruning_fig, pruned_branch_fig];
 
     %% output for CAD modeling
     if OUTPUT

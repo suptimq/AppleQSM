@@ -160,7 +160,7 @@ for i = 1:length(models)
             split_file = split(name, '_');
             tree_id = split_file{1};
             disp(['=========Tree ' num2str(tree_id) ' ========='])
-            nt = branch_trait(segmentation_folder, characterization_folder, tree_id, matched_qsm_table, options);
+            [nt, branch_fig_gcf] = branch_trait(segmentation_folder, characterization_folder, tree_id, matched_qsm_table, options);
             if k == 1
                 T = nt;
             else
@@ -169,33 +169,38 @@ for i = 1:length(models)
         end
 
         if options.SHOW
-            % hide ticks and axis
-            set(gca, 'xtick', [], 'ytick', [], 'ztick', []); axis off;
-            % maximize the figure window to fullscreen
-            set(gcf, 'WindowState', 'maximized');
-            % upfront  view
-            view([90, 0])
-            saveas(gcf, fullfile(characterization_folder, 'upfront.png'));
-            % top view
-            view([90, 90])
-            saveas(gcf, fullfile(characterization_folder, 'top.png'));
-
-            %% Set up the video writer
-            video_filepath = fullfile(characterization_folder, 'pruning_indication_map.avi');
-            writerObj = VideoWriter(video_filepath); % specify the file name and format
-            writerObj.FrameRate = 10; % set the frame rate (frames per second)
-            open(writerObj); % open the video writer
-            
-            % capture each frame of the plot and write it to the video file
-            for t = 1:100 % Change the range as needed
-                % rotate the plot for each frame (optional)
-                view(3*t, 20);
-                % capture the current frame
-                frame = getframe(gcf);
-                % write the frame to the video file
-                writeVideo(writerObj, frame);
+            for ig=1:numel(branch_fig_gcf)
+                figure(branch_fig_gcf(ig));
+                fig_name = get(branch_fig_gcf(ig), 'Name');
+                fig_name = strrep(fig_name, ' ', '_');
+                % hide ticks and axis
+                set(gca, 'xtick', [], 'ytick', [], 'ztick', []); axis off;
+                % maximize the figure window to fullscreen
+                set(gcf, 'WindowState', 'maximized');
+                % upfront  view
+                view([90, 0])
+                saveas(gcf, fullfile(characterization_folder, [fig_name '_upfront.png']));
+                % top view
+                view([90, 90])
+                saveas(gcf, fullfile(characterization_folder, [fig_name '_top.png']));
+    
+                %% Set up the video writer
+                video_filepath = fullfile(characterization_folder, [fig_name '_map.avi']);
+                writerObj = VideoWriter(video_filepath); % specify the file name and format
+                writerObj.FrameRate = 10; % set the frame rate (frames per second)
+                open(writerObj); % open the video writer
+                
+                % capture each frame of the plot and write it to the video file
+                for t = 1:100 % Change the range as needed
+                    % rotate the plot for each frame (optional)
+                    view(3*t, 20);
+                    % capture the current frame
+                    frame = getframe(gcf);
+                    % write the frame to the video file
+                    writeVideo(writerObj, frame);
+                end
+                close(writerObj); % close the video writer
             end
-            close(writerObj); % close the video writer
         end
 
         if options.SAVE
