@@ -1,36 +1,32 @@
 # Apple Trees Skeletonization and Characterization
 
-This repo contains the implementation of a geometrical-based 3D tree architecture traits characterization pipeline. The entire pipeline consists of a structure aware point cloud downsampling, a skeletonization [ROSA](https://github.com/jjcao/skeletonization), and architecture traits characterization algorithm.
+This repo contains the implementation of a 3D geometry-based apple tree characterization pipeline. The entire pipeline consists of a skeletonization [ROSA](https://github.com/jjcao/skeletonization), a trunk and branch segmentation, and a trait characterization method.
 
-## Hilbert Curve Downsampling
+## Requirements
 
-A sturcture-aware method to downsample apple tree pointcloud data.
+- MATLAB 2022a or higher
 
-### hilbertcurve
+## Configuration
 
-A python file used to generate hilbert curve object.
-
-#### Parameters
-
-- The order of hilbert curve $p$
-- The dimension of hibert curve $n$. default: $n=3$
-
-### Hilbertcurve method
-
-A downsampling method for pointcloud using hibert curve.
-
-#### Parameters
-
-- The order of hilbert curve $P$
-- The bin size of a histogram bin_size
-- The number of points after downsampling subsample_num
-- pointcloud data $pc$
+All parameters associated with the pipeline should be defined in a **.yaml** file saved in `config`.
 
 ## Skeletonization
+
+### Hilbert Curve Downsampling
+
+A sturcture-aware method to downsample apple tree pointcloud data. Hilbertcurve_method use space-filling curve to map a 3D coordinate to `[0,1]`.
+
+#### Parameters
+
+- **num_iteration**: The order of hilbert curve 
+- **bin_size**: The bin size of a histogram
+- **downsample_num**: The number of points after downsampling subsample_num
 
 ### Geometric contraction
 
 A laplacian-based contraction method iteratively contracts the point cloud.
+
+#### Parameters
 
 - Diagonal length of the point cloud as a cube *diameter*
 - A laplacian matrix *L* computed via 1-ring of a Delaunary triangulation
@@ -41,14 +37,16 @@ A laplacian-based contraction method iteratively contracts the point cloud.
 
 Containing Farthest point sampling (FPS), edge connectivity, and edge collapse.
 
+#### Parameters
+
 - FPS resolution &epsilon; (i.e., sample radius)
   - Derived from *diameter*
 
-## Characterization
+## Segmentation
 
 Point cloud density was used to approximate the thickness of the trunk and branches. The density of each point cloud was computed in **`compute_density.m`**. Then during **FPS** and **Edge_Collapse**, the density was manipulated. A biology aware graph-based tree structure segmentation algorithm and geometric-based tree architecture traits chracterization.
 
-### Biology Aware Graph and MST
+### Biology-Aware Graph and MST
 
 Develop a good MST that provides as much accurate connection as possible. The coefficient controls the ratio of local region thickness and length information to the edge weight.
 

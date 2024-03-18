@@ -2,13 +2,11 @@
 ###               Attention                ###
 ### ====================================== ###
 # The overall data folder structure looks like
-# exp_folder
-#   skeleton_folder:
-#     exp_name
-#   segmentation_folder:
-#     exp_name
-#   characterization_folder:
-#     exp_name
+# {exp_folder}
+# ├── Characterization
+# ├── Fusion
+# ├── Segmentation
+# └── Skeleton
 
 experiment: {
   # models: ['Raw_Incomplete_Trees', 
@@ -34,9 +32,9 @@ experiment: {
 }
 
 skeleton: {
-  bin_size: 5,
-  num_iteration: 7,
-  downsample_num: 50000,
+  bin_size: 5,                        # Bin size of a histogram, smaller -> higher resolution
+  num_iteration: 7,                   # Hilbert Curve order, larger -> higher resolution
+  downsample_num: 50000,              # target #points after downsampling
   downsample_mode: 2,                 # 1-Hilbert Curve, 2-Random, 3-Grid
   density_mode: 2,                    # 1-Hilbert Curve, 2-KNN
   gridStep: 0.0048,                   # if use Grid subsampling
@@ -44,7 +42,7 @@ skeleton: {
   ###               Attention                ###
   ### ====================================== ###
   ### this factor is IMPORTANT
-  ### a large factor leads to sparse skeleton 
+  ### a large factor leads to a sparse skeleton 
   sample_radius_factor: 0.006,
 }
 
@@ -60,18 +58,17 @@ segmentation: {
     ### alpha1 is for BA MST and alpha2 is for trunk segmentation
     graph_edge_coefficient_alpha1: 0.6,         
     graph_edge_coefficient_alpha2: 0.4,
-    z_threshold: 10,
-    slice_range_z_axis: 0.05,
+    slice_range_z_axis: 0.05,               # height threshold for trunk diameter estimation
     ransac_trunk_diameter_min_sample: 30,
     ransac_trunk_diameter_threshold: 0.005,
     ransac_trunk_diameter_trials: 100,
-    trunk_branch_seg_dbscan_eps_factor: 2,
+    trunk_branch_seg_dbscan_eps_factor: 2,  # multiplier of sample_radius_factor to determine dbscan eps
     # suggest to set them as default for TLS
     refinement: {
-      z_radius: 0.02,
-      maximum_length: 0.005,
-      N: 10,
-      M: 100
+      z_radius: 0.02,                       # cross-section height
+      maximum_length: 0.005,                # sub cross-section height to satisfy CPC assumption
+      N: 10,                                # #skeleton points in local RANSAC
+      M: 100                                # #skeleton points sampled from the spline
     },
     # whether use refined trunk for branch clustering
     # turn on this might reduce the branch count
