@@ -5,10 +5,40 @@ This repo contains the implementation of a 3D geometry-based apple tree characte
 ## Requirements
 
 - MATLAB 2022a or higher
+- [YAML parser](https://www.mathworks.com/matlabcentral/fileexchange/106765-yaml?s_tid=srchtitle_site_search_1_yaml)
+- [NATSORT function](https://www.mathworks.com/matlabcentral/fileexchange/47433-natural-order-row-sort?s_tid=ta_fx_results)
+- [Computer Vision ToolBox](https://www.mathworks.com/products/computer-vision.html)
+- [Statistical and Machine Learning ToolBox](https://www.mathworks.com/products/statistics.html)
 
 ## Configuration
 
-All parameters associated with the pipeline should be defined in a **.yaml** file saved in `config`.
+All parameters associated with the pipeline should be defined in a **.yaml** file saved in `config`. All interests of **.pcd** files are supposed to be saved in the `data_folder/model/mode` directory. If you don't have particular models to generate the **.pcd** files, you can leave `models` and `mode` as `.`, like showing below.
+
+
+```
+experiment: {
+  models: ['.'],              # ['model1', 'model2']
+  mode: .,                    # customization
+  num_tree: 9,
+  exp_folder: AppleQSM,
+  exp_name: ,                       # leave it empty if you dont want a specific one
+  skeleton_folder: Skeleton,
+  segmentation_folder: Segmentation,
+  characterization_folder: Characterization,
+  data_folder: E:\Result\LLC_02022022\Row13,
+  pcd_extension: .pcd,
+  mat_extension: .mat,
+  # switch
+  SKEL_ON: False,                     # turn on skeletonization
+  SEG_ON: False,                     # turn on segmentation
+  CHAR_ON: False,                    # turn on characterization
+}
+
+```
+
+## Usage
+
+The entry file is `characterizer.m`. Please read this file in detail if it is the first time you are using **AppleQSM**. The code should be easy to understand without going into detailed functions. The above `SKEL_ON`, `SEG_ON`, and `CHAR_ON` are to turn on the **tree skeletonization**, **tree structure segmentation (i.e., trunk/branch instance segmentation)**, and **trait extraction**. It is recommended to only leave one of them on so you can check the stage-wise results before moving forward.
 
 ## Skeletonization
 
