@@ -9,18 +9,13 @@
 # └── Skeleton
 
 experiment: {
-  # models: ['Raw_Incomplete_Trees', 
-  # 'AdaPoinTr_LB-Random_CDL1_Finetune', 
-  # 'AdaPoinTr_FTB55-v2_CDL1_Finetune',
-  # 'Generator2-AdaPoinTr-Skeleton-GAN_FTB55-v2_CDL1_SkelLoss-Coordinate-Only-Supervised-0.01_Finetune',
-  # 'Generator2-AdaPoinTr-Skeleton-GAN_FTB55-v2_CDL1_SkelLoss-Coordinate-Only-Supervised-0.01_Repulsion_CPC-2nd-Stage_Finetune'],
-  models: ['Raw_Incomplete_Trees'],
-  mode: Primary,                    # customization
+  models: ['.'],
+  mode: .,                    # customization
   num_tree: 9,
   exp_folder: AppleQSM,
   exp_name: ,                       # leave it empty if you dont want a specific one
   skeleton_folder: Skeleton,
-  segmentation_folder: Segmentation\Test,
+  segmentation_folder: Segmentation,
   characterization_folder: Characterization,
   data_folder: E:\Result\LLC_02022022\Row13,
   pcd_extension: .pcd,

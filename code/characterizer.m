@@ -4,9 +4,10 @@ path('utility', path);
 path('plot', path);
 path('refinement', path);
 path('config', path);
+path('skeleton', path);
 
 %% Configuration
-config_filepath = "config\iros_2024.yaml";
+config_filepath = "config\default.yaml";
 config = yaml.loadFile(config_filepath);
 
 % load experimental parameters
