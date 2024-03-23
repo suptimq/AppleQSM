@@ -251,6 +251,7 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
         min_samples = min_samples / 2;
 
         if min_samples < 5
+            disp('===================Characterization Failure===================');
             error('Not Enough Points for Trunk Diameter Estimation!');
         end
 
@@ -273,6 +274,7 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
     % ellipse fitting
     [ellipse, inliers, outliers] = ransac_py(largest_trunk_cluster_pts(:, 1:2), 'Ellipse', min_samples, residual_threshold, max_trials);
     if isnan(ellipse)
+        disp('===================Characterization Failure===================');
         error('===================Trunk Diameter Estimation Failed Due to Failed RANSAC  ===================');
     end
     xc = ellipse(1); yc = ellipse(2); radius_x = ellipse(3); radius_y = ellipse(4); theta = ellipse(5); trunk_radius = (radius_x + radius_y) / 2;
@@ -594,6 +596,11 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
     Link = linkprop([ax1, ax2], {'CameraUpVector', 'CameraPosition', 'CameraTarget', 'XLim', 'YLim', 'ZLim'});
     setappdata(gcf, 'StoreTheLink', Link);
 
+    if isempty(updated_cluster_pts_list)
+        disp('===================Characterization Failure===================');
+        error('Empty cluster after post-processing');
+    end
+
     %%---------------------------------------------------------%%
     %%-------------------Branch Segmentation-------------------%%
     %% individual branch segmentation
@@ -630,10 +637,6 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
     visited_id = cell(size(P.spls, 1), 1);
     MST_cell = {};
     rest_weighted_graph_cell = {};
-
-    if isempty(updated_cluster_pts_list)
-        error('===================Characterization Failure===================')
-    end
 
     [~, updated_cluster_pts_index_in_rest_pts] = ismember(updated_cluster_pts_list, rest_pts, 'row');
 

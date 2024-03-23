@@ -33,18 +33,18 @@ function [T, branch_fig_gcf] = branch_trait(seg_folder, output_folder, tree_id, 
     branch_pruning_fig = nan;
     pruned_branch_fig = nan;
 
+    % calculate y offset (1 m)
+    y_offset = (str2double(tree_id(5:end))-1) * 1;
+    % offset y to align with orchard setup
+    num_point = size(P.original_pt.Location, 1);
+    pc_color = uint8(repmat([0, 0, 0], num_point, 1));
+    offset_location = P.original_pt.Location;
+    offset_location(:, 2) = offset_location(:, 2) + y_offset;
+    offset_pc = pointCloud(offset_location, 'Color', pc_color);
     if SHOW
         branch_pruning_fig = figure(100);
         set(branch_pruning_fig, 'Name', 'Branch Mapping', 'Color', 'white');
 
-        % calculate y offset (1 m)
-        y_offset = (str2double(tree_id(5:end))-1) * 1;
-        % offset y to align with orchard setup
-        num_point = size(P.original_pt.Location, 1);
-        pc_color = uint8(repmat([0, 0, 0], num_point, 1));
-        offset_location = P.original_pt.Location;
-        offset_location(:, 2) = offset_location(:, 2) + y_offset;
-        offset_pc = pointCloud(offset_location, 'Color', pc_color);
         % find top point to text
         [~, top_point_index] = max(offset_location(:, 3));
         top_point = offset_location(top_point_index, :);
@@ -55,7 +55,6 @@ function [T, branch_fig_gcf] = branch_trait(seg_folder, output_folder, tree_id, 
             offset_pc = pcdownsample(offset_pc, 'random', ratio); % visualization purpose only!
         end
         % plot
-
         figure(100)
         pcshow(offset_pc, 'markersize', 30)
         set(gcf, 'color', 'white'); set(gca, 'color', 'white');
@@ -107,7 +106,7 @@ function [T, branch_fig_gcf] = branch_trait(seg_folder, output_folder, tree_id, 
         primary_branch_length = cumsum(primary_branch_pts_distance);
 
         if all(isnan(primary_branch_pts_radius)) || isempty(primary_spline_pts_radius)
-            disp(['===================SKIP BRNACH ' num2str(i) 'Due to All NaN ==================='])
+            disp(['===================SKIP BRNACH ' num2str(i) ' Due to All NaN ==================='])
             start = start + primary_branch_pts_size;
             spline_start = spline_start + primary_spline_pts_size;
             continue
@@ -207,6 +206,7 @@ function [T, branch_fig_gcf] = branch_trait(seg_folder, output_folder, tree_id, 
     % 2. Identify all branches whose diameter is larger than 2cm
     % 3. Remove the largest branch
     % 4. Prioritize top branches for the rest of target branches
+    branch_counter = numel(branch_pts_cell);
     text_loc = 1;
     sphere_radius = 0.03; % define the radius of the sphere for visualization of pruning
     new_branches = cell(branch_counter, 1);
