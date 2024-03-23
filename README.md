@@ -5,10 +5,17 @@ This repo contains the implementation of a 3D geometry-based apple tree characte
 ## Requirements
 
 - MATLAB 2022a or higher
-- [YAML parser](https://www.mathworks.com/matlabcentral/fileexchange/106765-yaml?s_tid=srchtitle_site_search_1_yaml)
-- [NATSORT function](https://www.mathworks.com/matlabcentral/fileexchange/47433-natural-order-row-sort?s_tid=ta_fx_results)
-- [Computer Vision ToolBox](https://www.mathworks.com/products/computer-vision.html)
-- [Statistical and Machine Learning ToolBox](https://www.mathworks.com/products/statistics.html)
+  - [YAML Parser](https://www.mathworks.com/matlabcentral/fileexchange/106765-yaml?s_tid=srchtitle_site_search_1_yaml)
+  - [NATSORT Function](https://www.mathworks.com/matlabcentral/fileexchange/47433-natural-order-row-sort?s_tid=ta_fx_results)
+  - [Computer Vision ToolBox](https://www.mathworks.com/products/computer-vision.html)
+  - [Statistical and Machine Learning ToolBox](https://www.mathworks.com/products/statistics.html)
+  - [Point-to-Line-Distance Function](https://www.mathworks.com/matlabcentral/fileexchange/64396-point-to-line-distance?s_tid=srchtitle_support_results_1_point_to_line)
+  - [Line-Line Intersection](https://www.mathworks.com/matlabcentral/fileexchange/59805-line-line-intersection-n-lines-d-space)
+  - [Configuration Python in MATLAB](https://www.mathworks.com/help/matlab/matlab_external/install-supported-python-implementation.html)
+- Python 3.8
+  - numpy>=1.23.4
+  - [scikit-image>=0.19.3](https://scikit-image.org/docs/stable/user_guide/install.html)
+  - [pyransac3d](https://pypi.org/project/pyransac3d/)
 
 ## Configuration
 
