@@ -15,7 +15,9 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
     if isnan(skel_filename)
         disp('===================Characterization Failure===================');
         error([skel_filename 'Not Found']);
-    end    
+    end
+    % save updated mat file
+    seg_mat_filepath = fullfile(output_folder, skel_filename);
     % save segmented trunk and branch pcd files
     segmented_folder = fullfile(output_folder, [tree_id '_branch']);
     % start logging output to the specified file
@@ -135,7 +137,7 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
     P.inverse_weighted_graph = inverse_weighted_graph;
     P.inverse_weighted_graph_edge_weight = graph_weight;
     P.mst_spls_adj = MST_adj_matrix;
-    save(skel_filepath, 'P');
+    save(seg_mat_filepath, 'P');
 
     %% compute the edge weights from each MST node to the root point
     % main trunk end point is the one with the maximum path density_weight
@@ -177,7 +179,7 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
 
     P.coarse_main_trunk_pts = main_trunk_pts;
     P.coarse_main_trunk_pts_index = main_trunk_pts_idx;
-    save(skel_filepath, 'P');
+    save(seg_mat_filepath, 'P');
 
     figure('Name', 'Coarse main trunk')
     pcshow(pt, 'markersize', 20); hold on
@@ -227,7 +229,7 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
     rest_pts = P.spls(rest_pts_idx, :);
 
     P.all_branch_pts = rest_pts;
-    save(skel_filepath, 'P');
+    save(seg_mat_filepath, 'P');
 
     disp(['main trunk refine range: ' num2str(main_trunk_refine_range)]);
 
@@ -307,7 +309,7 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
     P.trunk_diameter_pts = largest_trunk_cluster_pts(inliers_idx, :);
     P.trunk_diameter_ellipse = ellipse;
     P.trunk_radius = trunk_radius;
-    save(skel_filepath, 'P');
+    save(seg_mat_filepath, 'P');
 
     if TRUNK_REFINEMENT
         %%---------------------------------------------------%%
@@ -325,7 +327,7 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
         P.trunk_cpc_optimized_radius = trunk_cpc_optimized_radius;
         P.trunk_cpc_optimized_confidence = trunk_cpc_optimized_confidence;
         P.trunk_pc = trunk_pc;
-        save(skel_filepath, 'P');
+        save(seg_mat_filepath, 'P');
 
         disp(['xy radius: ' num2str(trunk_refinement_options.xy_radius)]);
         disp(['z radius: ' num2str(trunk_refinement_options.z_radius)]);
@@ -368,7 +370,7 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
     ratio_distance_list = [0, cumsum(distance_list) / sum(distance_list)];
     P.main_trunk_length = sum(distance_list);
     P.trunk_internode_distance_ratio = ratio_distance_list;
-    save(skel_filepath, 'P');
+    save(seg_mat_filepath, 'P');
 
     figure('Name', 'Refined main trunk')
     pcshow(pt, 'markersize', 20); hold on
@@ -716,7 +718,7 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
     P.branch_root_pts = valid_cluster_pts_list;
     P.branch_root_label = valid_cluster_pts_label;
     P.branch_counter = branch_counter;
-    save(skel_filepath, 'P');
+    save(seg_mat_filepath, 'P');
 
     figure('Name', 'Branch count visualization')
     ax1 = subplot(1, 2, 1);
@@ -890,7 +892,7 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
     P.entire_branch_pts = entire_branch_pts;
     P.entire_branch_label = entire_branch_label;
     P.entire_branch_counter = branch_counter;
-    save(skel_filepath, 'P');
+    save(seg_mat_filepath, 'P');
 
     %%-------------------------------------------------------------------%%
     %%-------------------Primary Branch Identification-------------------%%
@@ -1201,7 +1203,7 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
             invalid_radii = P.primary_branch_radius(invalid_primary_branch_index);
         end
 
-        save(skel_filepath, 'P');
+        save(seg_mat_filepath, 'P');
         disp(['sphere radius: ' num2str(branch_refinement_options.sphere_radius)]);
         disp(['maximum length: ' num2str(branch_refinement_options.maximum_length)]);
         disp(['M: ' num2str(M)]);
