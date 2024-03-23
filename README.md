@@ -5,12 +5,15 @@ This repo contains the implementation of a 3D geometry-based apple tree characte
 ## Requirements
 
 - MATLAB 2022a or higher
-  - [YAML Parser](https://www.mathworks.com/matlabcentral/fileexchange/106765-yaml?s_tid=srchtitle_site_search_1_yaml)
-  - [NATSORT Function](https://www.mathworks.com/matlabcentral/fileexchange/47433-natural-order-row-sort?s_tid=ta_fx_results)
   - [Computer Vision ToolBox](https://www.mathworks.com/products/computer-vision.html)
   - [Statistical and Machine Learning ToolBox](https://www.mathworks.com/products/statistics.html)
+  - [Optimization ToolBox](https://www.mathworks.com/products/optimization.html)
+  - [Curve Fitting ToolBox](https://www.mathworks.com/products/curvefitting.html)
+  - [YAML Parser](https://www.mathworks.com/matlabcentral/fileexchange/106765-yaml?s_tid=srchtitle_site_search_1_yaml)
+  - [NATSORT Function](https://www.mathworks.com/matlabcentral/fileexchange/47433-natural-order-row-sort?s_tid=ta_fx_results)
   - [Point-to-Line-Distance Function](https://www.mathworks.com/matlabcentral/fileexchange/64396-point-to-line-distance?s_tid=srchtitle_support_results_1_point_to_line)
   - [Line-Line Intersection](https://www.mathworks.com/matlabcentral/fileexchange/59805-line-line-intersection-n-lines-d-space)
+  - [matGeom](https://www.mathworks.com/matlabcentral/fileexchange/107370-matgeom)
   - [Configuration Python in MATLAB](https://www.mathworks.com/help/matlab/matlab_external/install-supported-python-implementation.html)
 - Python 3.8
   - numpy>=1.23.4
