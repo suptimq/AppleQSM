@@ -4,6 +4,7 @@ function [T, branch_fig_gcf] = branch_trait(seg_folder, output_folder, tree_id, 
     SHOW_BRANCH = options.SHOW_BRANCH;
     SAVE = options.SAVE;
     OUTPUT = options.OUTPUT;
+    PRUNE = options.PRUNE;
 
     % output for CAD tree modeling
     cad_save_folder = fullfile(output_folder, 'Fusion');
@@ -83,7 +84,8 @@ function [T, branch_fig_gcf] = branch_trait(seg_folder, output_folder, tree_id, 
         primary_branch_pts_radius(primary_branch_pts_radius > P.trunk_radius / 2) = NaN;
 
         % find the internode
-        [sliced_main_trunk_pts, row, col] = find_internode(double(primary_branch_pts), double(trunk_skeleton_pts), 0.2);
+        slice_range_z_axis = options.CHAR_PARA.slice_range_z_axis;
+        [sliced_main_trunk_pts, row, col] = find_internode(double(primary_branch_pts), double(trunk_skeleton_pts), slice_range_z_axis);
         trunk_internode = sliced_main_trunk_pts(row, :);
         branch_internode = primary_branch_pts(col, :);
         branch_internode_height = branch_internode(3) - trunk_skeleton_pts_root_z;
@@ -100,11 +102,7 @@ function [T, branch_fig_gcf] = branch_trait(seg_folder, output_folder, tree_id, 
         kdtree = KDTreeSearcher(primary_branch_pts);
         [spline_nn_index, ~] = knnsearch(kdtree, primary_spline_pts, 'K', 3);
         primary_spline_pts_radius = median(primary_branch_pts_radius(spline_nn_index), 2, 'omitnan');
-        primary_spline_pts_radius = fillmissing(primary_spline_pts_radius, 'linear');
-%         primary_spline_pts_radius = primary_branch_pts_radius(~isnan(primary_branch_pts_radius));
-        primary_branch_pts_distance = sqrt(sum(diff([trunk_internode; primary_spline_pts]).^2, 2));        % append trunk internode to the first
-        primary_branch_length = cumsum(primary_branch_pts_distance);
-
+        
         if all(isnan(primary_branch_pts_radius)) || isempty(primary_spline_pts_radius)
             disp(['===================SKIP BRNACH ' num2str(i) ' Due to All NaN ==================='])
             start = start + primary_branch_pts_size;
@@ -112,12 +110,28 @@ function [T, branch_fig_gcf] = branch_trait(seg_folder, output_folder, tree_id, 
             continue
         end
 
+        primary_spline_pts_radius = fillmissing(primary_spline_pts_radius, 'linear');
+        % in case 'linear' method couldn't resolve all NaN values
+        primary_spline_pts_radius = fillmissing(primary_spline_pts_radius, 'nearest');
+
+        primary_branch_pts_distance = sqrt(sum(diff([trunk_internode; primary_spline_pts]).^2, 2));        % append trunk internode to the first
+        primary_branch_length = cumsum(primary_branch_pts_distance);
+
         assert(~any(isnan(primary_spline_pts_radius)), 'Found NaN')
 
         % fit trunk vector - only use trunk points that are close to the
         % internode
-        min_samples = 3; residual_threshold = 0.005; max_trials = 1e3;
+        min_samples = options.CHAR_PARA.ransac_min_sample;
+        residual_threshold = options.CHAR_PARA.ransac_threshold;
+        max_trials = options.CHAR_PARA.ransac_trials;
         [v1, inliers, ~] = ransac_py(sliced_main_trunk_pts, '3D_Line', min_samples, residual_threshold, max_trials);
+
+        if isnan(v1)
+            disp(['===================SKIP BRNACH ' num2str(i) ' Due to Failed RANSAC ==================='])
+            start = start + primary_branch_pts_size;
+            spline_start = spline_start + primary_spline_pts_size;
+            continue
+        end
 
         if v1(end) < 0
             v1(end) = -v1(end);
@@ -127,17 +141,24 @@ function [T, branch_fig_gcf] = branch_trait(seg_folder, output_folder, tree_id, 
         sliced_main_trunk_pts_outlier = sliced_main_trunk_pts(inliers ~= 1, :);
 
         % angle
-        N = options.CHAR_PARA.angle_K;
-        [segment_vectors, vertical_angle, N] = find_branch_angle(trunk_internode, trunk_radius, v1, primary_spline_pts, N);
+        num_angle_vec = options.CHAR_PARA.angle_K;
+        [segment_vectors, vertical_angle, num_angle_vec] = find_branch_angle(trunk_internode, trunk_radius, v1, primary_spline_pts, num_angle_vec);
+
+        if isempty(segment_vectors)
+            disp(['===================SKIP BRNACH ' num2str(i) ' Due to Empty Branch Vector ==================='])
+            start = start + primary_branch_pts_size;
+            spline_start = spline_start + primary_spline_pts_size;
+            continue
+        end
 
         % radius
         s = options.CHAR_PARA.diameter_start_idx;
-        M = options.CHAR_PARA.diameter_K; % #skeleton points used in radius
+        num_diameter_pts = options.CHAR_PARA.diameter_K; % #skeleton points used in radius
         tmp_radius = primary_spline_pts_radius;
-        if length(tmp_radius) < M+s
+        if length(tmp_radius) < num_diameter_pts+s
             r_index = 1:length(tmp_radius);
         else
-            r_index = s:M+s;
+            r_index = s:num_diameter_pts+s;
         end
         radius = median(tmp_radius(r_index), 'omitnan') * 1e3;
 
@@ -175,8 +196,8 @@ function [T, branch_fig_gcf] = branch_trait(seg_folder, output_folder, tree_id, 
             plot3(sliced_main_trunk_pts_outlier(:, 1), sliced_main_trunk_pts_outlier(:, 2), sliced_main_trunk_pts_outlier(:, 3), '.y', 'Markersize', 30);
             quiver3(v1(1), v1(2), v1(3), v1(4), v1(5), v1(6));
             plot3(primary_spline_pts(:, 1), primary_spline_pts(:, 2), primary_spline_pts(:, 3), '.g', 'Markersize', 30);
-            quiver3(segment_vectors(1:N, 1), segment_vectors(1:N, 2), segment_vectors(1:N, 3), ...
-                segment_vectors(1:N, 4), segment_vectors(1:N, 5), segment_vectors(1:N, 6), ...
+            quiver3(segment_vectors(1:num_angle_vec, 1), segment_vectors(1:num_angle_vec, 2), segment_vectors(1:num_angle_vec, 3), ...
+                segment_vectors(1:num_angle_vec, 4), segment_vectors(1:num_angle_vec, 5), segment_vectors(1:num_angle_vec, 6), ...
                 1, 'LineWidth', 2);
             legend('Inlier', 'Outlier', 'Trunk vector', 'Branch vector', 'Entire branch')
             title('Vertical angle: ', num2str(vertical_angle, '%.2f'))
@@ -201,85 +222,94 @@ function [T, branch_fig_gcf] = branch_trait(seg_folder, output_folder, tree_id, 
         spline_start = spline_start + primary_spline_pts_size;
     end
 
-    %% pruning determination
-    % 1. Cut a maximum of two branches
-    % 2. Identify all branches whose diameter is larger than 2cm
-    % 3. Remove the largest branch
-    % 4. Prioritize top branches for the rest of target branches
-    branch_counter = numel(branch_pts_cell);
-    text_loc = 1;
-    sphere_radius = 0.03; % define the radius of the sphere for visualization of pruning
-    new_branches = cell(branch_counter, 1);
-    cut_branch_pts = cell(branch_counter, 1);
-    cut_branch_indices  = branch_pruning(branch_radius_list, branch_node_list);
-    cut_branch_pc_list = [];
-    for i = 1:branch_counter
-        branch_pts = branch_pts_cell{i};
-        num_branch_pts = size(branch_pts, 1);
-        primary_branch_length = branch_length_cell{i};
-        branch_color = zeros(num_branch_pts, 3); % Initialize with default color
-        if ismember(i, cut_branch_indices)
-            % find the cutting point index by length
-            cutting_point_index = find(primary_branch_length > 0.1, 1);
-            % assign colors to points
-            status_color = [1, 0, 0]; 
-            branch_color(cutting_point_index+1:end, :) = repmat(status_color, num_branch_pts - cutting_point_index, 1); % Red color for points after cutting point
-        elseif primary_branch_length(end) > 0.4
-            % find the cutting point index by length
-            cutting_point_index = find(primary_branch_length > 0.4, 1);
-            status_color = [0, 0, 1];
-            branch_color(cutting_point_index+1:end, :) = repmat(status_color, num_branch_pts - cutting_point_index, 1); % Blue color for points after cutting point
-        else
-            cutting_point_index = num_branch_pts;
-        end
-        % update colors
-        branch_color(1:cutting_point_index, :) = repmat([0, 1, 0], cutting_point_index, 1); % Default color (green) for points before cutting point
-        % save for the visualization of pruned tree
-        new_branch_pts = branch_pts(1:cutting_point_index, :);
-        new_branches{i} = new_branch_pts;
-        cut_branch_pts{i} = branch_pts(cutting_point_index+1:end, :);
-        % Remove points within the sphere of cut_branch_pts from offset_pc
-        if ~isempty(cut_branch_pts{i})
-            cut_branch = cut_branch_pts{i};
-            for ic=1:size(cut_branch, 1)
-                sphere_center = cut_branch(ic, :); % center of the sphere
-                % Define the boundaries of the cuboid that encloses the sphere
-                xmin = sphere_center(1) - sphere_radius; xmax = sphere_center(1) + sphere_radius;
-                ymin = sphere_center(2) - sphere_radius; ymax = sphere_center(2) + sphere_radius;
-                zmin = sphere_center(3) - sphere_radius; zmax = sphere_center(3) + sphere_radius;
-                roi = [xmin, xmax, ymin+y_offset, ymax+y_offset, zmin, zmax];
-                indices_within_sphere = findPointsInROI(offset_pc, roi);
-                roi_pc = select(offset_pc, indices_within_sphere);
-                cut_branch_pc_list = [cut_branch_pc_list; roi_pc];
+
+    if PRUNE
+        %% pruning determination
+        % 1. Cut a maximum of two branches
+        % 2. Identify all branches whose diameter is larger than 2cm
+        % 3. Remove the largest branch
+        % 4. Prioritize top branches for the rest of target branches
+        branch_counter = numel(branch_pts_cell);
+        text_loc = 1;
+        sphere_radius = 0.03; % define the radius of the sphere for visualization of pruning
+        new_branches = cell(branch_counter, 1);
+        cut_branch_pts = cell(branch_counter, 1);
+        cut_branch_indices  = branch_pruning(branch_radius_list, branch_node_list);
+        cut_branch_pc_list = [];
+        for i = 1:branch_counter
+            branch_pts = branch_pts_cell{i};
+            num_branch_pts = size(branch_pts, 1);
+            primary_branch_length = branch_length_cell{i};
+            branch_color = zeros(num_branch_pts, 3); % Initialize with default color
+            if ismember(i, cut_branch_indices)
+                % find the cutting point index by length
+                cutting_point_index = find(primary_branch_length > 0.1, 1);
+                if isempty(cutting_point_index)
+                    cutting_point_index = num_branch_pts;
+                end
+                % assign colors to points
+                status_color = [1, 0, 0]; 
+                branch_color(cutting_point_index+1:end, :) = repmat(status_color, num_branch_pts - cutting_point_index, 1); % Red color for points after cutting point
+            elseif primary_branch_length(end) > 0.4
+                % find the cutting point index by length
+                cutting_point_index = find(primary_branch_length > 0.4, 1);
+                if isempty(cutting_point_index)
+                    cutting_point_index = num_branch_pts;
+                end
+                status_color = [0, 0, 1];
+                branch_color(cutting_point_index+1:end, :) = repmat(status_color, num_branch_pts - cutting_point_index, 1); % Blue color for points after cutting point
+            else
+                cutting_point_index = num_branch_pts;
+            end
+            % update colors
+            branch_color(1:cutting_point_index, :) = repmat([0, 1, 0], cutting_point_index, 1); % Default color (green) for points before cutting point
+            % save for the visualization of pruned tree
+            new_branch_pts = branch_pts(1:cutting_point_index, :);
+            new_branches{i} = new_branch_pts;
+            cut_branch_pts{i} = branch_pts(cutting_point_index+1:end, :);
+            % Remove points within the sphere of cut_branch_pts from offset_pc
+            if ~isempty(cut_branch_pts{i})
+                cut_branch = cut_branch_pts{i};
+                for ic=1:size(cut_branch, 1)
+                    sphere_center = cut_branch(ic, :); % center of the sphere
+                    % Define the boundaries of the cuboid that encloses the sphere
+                    xmin = sphere_center(1) - sphere_radius; xmax = sphere_center(1) + sphere_radius;
+                    ymin = sphere_center(2) - sphere_radius; ymax = sphere_center(2) + sphere_radius;
+                    zmin = sphere_center(3) - sphere_radius; zmax = sphere_center(3) + sphere_radius;
+                    roi = [xmin, xmax, ymin+y_offset, ymax+y_offset, zmin, zmax];
+                    indices_within_sphere = findPointsInROI(offset_pc, roi);
+                    roi_pc = select(offset_pc, indices_within_sphere);
+                    cut_branch_pc_list = [cut_branch_pc_list; roi_pc];
+                end
+            end
+
+            if SHOW
+                figure(100)
+                scatter3(branch_pts(:, 1), branch_pts(:, 2)+y_offset, branch_pts(:, 3),  50, branch_color, 'filled'); hold on
+                text(branch_pts(text_loc, 1), branch_pts(text_loc, 2)+y_offset+0.05, branch_pts(text_loc, 3)+0.05, num2str(i), 'Color', 'red', 'HorizontalAlignment', 'left', 'FontSize', 12);
+        %         figure(101);
+        %         scatter3(new_branch_pts(:, 1), new_branch_pts(:, 2) + y_offset, new_branch_pts(:, 3),  50); hold on
             end
         end
+        
+        cut_branch_pc = pccat(cut_branch_pc_list);
+        % Extract the XYZ coordinates of points in cut_branch_pc
+        cut_points = cut_branch_pc.Location;
+        % Logical indexing to find points in ori_branch_pc that are not in cut_branch_pc
+        keep_indices = ~ismember(offset_pc.Location, cut_points, 'rows');
+        % Create a new point cloud with points from ori_branch_pc that are not in cut_branch_pc
+        pruned_branch_pc = select(offset_pc, find(keep_indices));
+        % Remove points at the VERY end of branches
+        denoised_pruned_branch_pc = pcdenoise(pruned_branch_pc);
 
         if SHOW
-            figure(100)
-            scatter3(branch_pts(:, 1), branch_pts(:, 2)+y_offset, branch_pts(:, 3),  50, branch_color, 'filled'); hold on
-            text(branch_pts(text_loc, 1), branch_pts(text_loc, 2)+y_offset+0.05, branch_pts(text_loc, 3)+0.05, num2str(i), 'Color', 'red', 'HorizontalAlignment', 'left', 'FontSize', 12);
-    %         figure(101);
-    %         scatter3(new_branch_pts(:, 1), new_branch_pts(:, 2) + y_offset, new_branch_pts(:, 3),  50); hold on
+            pruned_branch_fig = figure(101);
+            set(pruned_branch_fig, 'Name', 'Pruned Branch Mapping', 'Color', 'white');
+            
+            pcshow(denoised_pruned_branch_pc, 'markersize', 30)
+            set(gcf, 'color', 'white'); set(gca, 'color', 'white');
+            hold on
         end
-    end
-    
-    cut_branch_pc = pccat(cut_branch_pc_list);
-    % Extract the XYZ coordinates of points in cut_branch_pc
-    cut_points = cut_branch_pc.Location;
-    % Logical indexing to find points in ori_branch_pc that are not in cut_branch_pc
-    keep_indices = ~ismember(offset_pc.Location, cut_points, 'rows');
-    % Create a new point cloud with points from ori_branch_pc that are not in cut_branch_pc
-    pruned_branch_pc = select(offset_pc, find(keep_indices));
-    % Remove points at the VERY end of branches
-    denoised_pruned_branch_pc = pcdenoise(pruned_branch_pc);
-
-    if SHOW
-        pruned_branch_fig = figure(101);
-        set(pruned_branch_fig, 'Name', 'Pruned Branch Mapping', 'Color', 'white');
-        
-        pcshow(denoised_pruned_branch_pc, 'markersize', 30)
-        set(gcf, 'color', 'white'); set(gca, 'color', 'white');
-        hold on
     end
 
     branch_fig_gcf = [branch_pruning_fig, pruned_branch_fig];

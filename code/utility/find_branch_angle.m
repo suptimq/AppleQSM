@@ -1,9 +1,18 @@
-function [segment_vectors, vertical_angle, N] = find_branch_angle(trunk_internode, trunk_radius, trunk_vector, primary_spline_pts, N)
+function [segment_vectors, vertical_angle, N] = find_branch_angle(trunk_internode, trunk_radius, trunk_vector, primary_spline_pts, num_angle_vector)
+
+    % Initialize return variables to avoid unassigned errors
+    segment_vectors = [];
+    vertical_angle = [];
+    N = num_angle_vector; % the count of valid points or segments
 
     % filter out branch skeleton points that are within trunk
     uniform_xyz_distance = pdist2(primary_spline_pts, double(trunk_internode));
     index = uniform_xyz_distance >= trunk_radius;
     primary_spline_pts_outside = primary_spline_pts(index, :);
+
+    if size(primary_spline_pts_outside, 1) < 2
+        return;
+    end
 
     % fit branch segment vector
     min_samples = 3; residual_threshold = 0.015; max_trials = 1e3;
@@ -20,9 +29,15 @@ function [segment_vectors, vertical_angle, N] = find_branch_angle(trunk_internod
         segment_vectors(j, :) = segment_vector;
     end
 
-    % direction check
-    branch_grow_direction = primary_spline_pts_outside(3, :) - primary_spline_pts_outside(2, :);
-    branch_grow_direction2 = primary_spline_pts_outside(2, :) - primary_spline_pts_outside(1, :);
+    % direction check2
+    if size(primary_spline_pts_outside, 1) >= 3
+        branch_grow_direction = primary_spline_pts_outside(3, :) - primary_spline_pts_outside(2, :);
+        branch_grow_direction2 = primary_spline_pts_outside(2, :) - primary_spline_pts_outside(1, :);
+    else
+        branch_grow_direction = primary_spline_pts_outside(2, :) - primary_spline_pts_outside(1, :);
+        branch_grow_direction2 = primary_spline_pts_outside(2, :) - primary_spline_pts_outside(1, :);
+    end
+    
 
     for j = 1:N
         segment_direction = segment_vectors(j, 4:end);

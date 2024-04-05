@@ -85,6 +85,7 @@ options.SHOW = config.characterization.options.SHOW;
 options.SHOW_BRANCH = config.characterization.options.SHOW_BRANCH;
 options.SAVE =config.characterization.options.SAVE;
 options.OUTPUT = config.characterization.options.OUTPUT;
+options.PRUNE = config.characterization.options.PRUNE;
 
 % load skeleton files
 mat_files = dir(fullfile(skel_folder, exp_name, ['tree*' mat_extension]));
@@ -146,7 +147,7 @@ if options.CHAR_ON
         matched_qsm_table = table;
     end
 
-    T = nan;
+    T = table(); % Initialize T as an empty table
     for k = 2
         file = mat_files(k).name;
         [filepath, name, ext] = fileparts(file);
@@ -154,10 +155,10 @@ if options.CHAR_ON
         tree_id = split_file{1};
         disp(['=========Tree ' num2str(tree_id) ' ========='])
         [nt, branch_fig_gcf] = branch_trait(segmentation_folder, characterization_folder, tree_id, matched_qsm_table, options);
-        if isnan(T)
+        if isempty(T)
             T = nt;
         else
-            T = vertcat(T, nt);
+            T = [T; nt]; % Concatenate nt to T
         end
     end
 

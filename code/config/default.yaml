@@ -130,10 +130,15 @@ characterization: {
   # this # might impact the accuracy (need to tune experimentally)
   diameter_K: 4,
   angle_K: 4,
+  slice_range_z_axis: 0.2,               # height threshold for sliced trunk selection
+  ransac_min_sample: 3,
+  ransac_threshold: 0.005,
+  ransac_trials: 1000,
   options: {
     SHOW: True,                   # plot the branch number
     SHOW_BRANCH: False,            # plot the single branch characterization
     SAVE: True,                    # save characterization results as csv files
     OUTPUT: False,                 # output skeleton infor for Real2Sim data generation
+    PRUNE: True,                   # determine target branches need to be pruned
   }
 }
