@@ -7,7 +7,7 @@ path('config', path);
 path('skeleton', path);
 
 %% Configuration
-config_filepath = "config\KNX_03182022.yaml";
+config_filepath = "config\default.yaml";
 config = yaml.loadFile(config_filepath);
 
 % load experimental parameters
@@ -52,7 +52,7 @@ pcd_files = natsortfiles(pcd_files);
 
 if options.SKEL_ON
     % loop pcd_files
-    for i = 2
+    for i = 1:numel(pcd_files)
         filename = pcd_files(i).name;
         disp(['=========Tree ' num2str(filename) ' ========='])
         laplacian_skeleton(tree_folder, skel_folder, exp_name, filename, options);
@@ -71,7 +71,8 @@ end
 %%====================================%%
 options.SEG_PARA = config.segmentation;
 options.DEBUG = config.segmentation.options.DEBUG;
-options.SEGMENTATION = config.segmentation.options.SEGMENTATION;
+options.TRUNK_SEGMENTATION = config.segmentation.options.TRUNK_SEGMENTATION;
+options.BRANCH_SEGMENTATION = config.segmentation.options.BRANCH_SEGMENTATION;
 options.TRUNK_REFINEMENT = config.segmentation.options.TRUNK_REFINEMENT;
 options.BRANCH_REFINEMENT = config.segmentation.options.BRANCH_REFINEMENT;        
 options.SAVE_PARAS = config.segmentation.options.SAVE_PARAS;
@@ -88,7 +89,7 @@ options.OUTPUT = config.characterization.options.OUTPUT;
 options.PRUNE = config.characterization.options.PRUNE;
 
 % load skeleton files
-mat_files = dir(fullfile(skel_folder, exp_name, ['tree*' mat_extension]));
+mat_files = dir(fullfile(skel_folder, exp_name, ['*' mat_extension]));
 mat_files = natsortfiles(mat_files);
 
 segmentation_folder = fullfile(data_folder, exp_folder, segmentation_folder, exp_name);
@@ -101,7 +102,7 @@ if options.SEG_ON
     copyfile(config_filepath, segmentation_folder);
     branch_quantity_table = {};
     branch_quantity_table_col = {};
-    for k = 2
+    for k = 1
         file = mat_files(k).name;
         [filepath, name, ext] = fileparts(file);
         split_file = split(name, '_');
@@ -111,6 +112,10 @@ if options.SEG_ON
         branch_quantity_table{end+1} = num_primary_branch;
         branch_quantity_table_col{end+1} = ['tree' num2str(k)];
     end
+
+    % compute the total branch #
+    branch_quantity_table{end+1} = sum(cell2mat(branch_quantity_table(1:end)));
+    branch_quantity_table_col{end+1} = 'Total';
 
     %% Save the table to a CSV file
     % create table
@@ -148,7 +153,7 @@ if options.CHAR_ON
     end
 
     T = table(); % Initialize T as an empty table
-    for k = 2
+    for k = 1
         file = mat_files(k).name;
         [filepath, name, ext] = fileparts(file);
         split_file = split(name, '_');

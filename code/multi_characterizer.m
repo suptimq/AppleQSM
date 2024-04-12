@@ -7,7 +7,7 @@ path('config', path);
 path('skeleton', path);
 
 %% Configuration
-config_filepath = "config\KNX_03182022.yaml";
+config_filepath = "config\default.yaml";
 config = yaml.loadFile(config_filepath);
 
 % load experimental parameters
@@ -33,9 +33,6 @@ options.SKEL_ON = config.experiment.SKEL_ON;
 options.SEG_ON = config.experiment.SEG_ON;
 options.CHAR_ON =config.experiment.CHAR_ON;
 
-% tree of interest
-tree_of_interest = config.experiment.tree_of_interest;
-
 %% Skeletonization
 % load downsampling parameters
 options.SKEL_PARA = config.skeleton;
@@ -58,7 +55,7 @@ if options.SKEL_ON
         pcd_files = natsortfiles(pcd_files);
 
         % loop pcd_files
-        for i = 2
+        for i = 1:length(pcd_files)
             filename = pcd_files(i).name;
             disp(['=========Tree ' num2str(filename) ' ========='])
             laplacian_skeleton(tree_folder, skel_folder, exp_name, filename, options);
@@ -78,7 +75,8 @@ end
 %%====================================%%
 options.SEG_PARA = config.segmentation;
 options.DEBUG = config.segmentation.options.DEBUG;
-options.SEGMENTATION = config.segmentation.options.SEGMENTATION;
+options.TRUNK_SEGMENTATION = config.segmentation.options.TRUNK_SEGMENTATION;
+options.BRANCH_SEGMENTATION = config.segmentation.options.BRANCH_SEGMENTATION;
 options.TRUNK_REFINEMENT = config.segmentation.options.TRUNK_REFINEMENT;
 options.BRANCH_REFINEMENT = config.segmentation.options.BRANCH_REFINEMENT;        
 options.SAVE_PARAS = config.segmentation.options.SAVE_PARAS;
@@ -92,20 +90,21 @@ options.SHOW = config.characterization.options.SHOW;
 options.SHOW_BRANCH = config.characterization.options.SHOW_BRANCH;
 options.SAVE =config.characterization.options.SAVE;
 options.OUTPUT = config.characterization.options.OUTPUT;
+options.PRUNE = config.characterization.options.PRUNE;
 
 % create cell array for table data
-data = cell(numel(models), config.experiment.num_tree+1);
-
+data = cell(numel(models), config.experiment.num_tree+2);
 for i = 1:length(models)
     model = models{i}{1};
     tree_folder = fullfile(data_folder, model, mode);
     skel_folder = fullfile(data_folder, model, mode, exp_folder, skeleton_folder, exp_name);
 
     % load skeleton files
-    mat_files = dir(fullfile(skel_folder, exp_name, ['tree*' mat_extension]));
+    mat_files = dir(fullfile(skel_folder, exp_name, ['*' mat_extension]));
     mat_files = natsortfiles(mat_files);
-
+    
     data{i, 1} = model;
+    table_col = {'model_name'};
     if options.SEG_ON
         segmentation_folder = fullfile(data_folder, model, mode, exp_folder, segmentation_folder, exp_name);
         % copy config to segmentation folder
@@ -113,7 +112,7 @@ for i = 1:length(models)
             mkdir(segmentation_folder);
         end
         copyfile(config_filepath, segmentation_folder);
-        for k = 1
+        for k = 1:numel(mat_files)
             file = mat_files(k).name;
             [filepath, name, ext] = fileparts(file);
             split_file = split(name, '_');
@@ -121,11 +120,16 @@ for i = 1:length(models)
             disp(['=========Tree ' num2str(tree_id) ' ========='])
             num_primary_branch = segmentation(skel_folder, segmentation_folder, tree_id, options);
             data{i, 1+k} = num_primary_branch;
+            table_col{end+1} = ['tree' num2str(k)];
         end
     
+        % compute the total branch #
+        data{i, end} = sum(cell2mat(data(i, 2:end-1)));
+        table_col{end+1} = 'Total';
+
         %% Save the table to a CSV file
         % create table
-        T = cell2table(data, 'VariableNames', {'model_name', 'tree1', 'tree2', 'tree3', 'tree4', 'tree5', 'tree6', 'tree7', 'tree8', 'tree9'});    
+        T = cell2table(data, 'VariableNames', table_col);    
 
         csv_filepath_output = fullfile(result_folder, 'Branch_Quantity.csv');  % define filename
         % check if the file exists
@@ -158,7 +162,7 @@ for i = 1:length(models)
             matched_qsm_table = table;
         end
 
-        for k = 1:length(mat_files)
+        for k = 1:numel(mat_files)
             file = mat_files(k).name;
             [filepath, name, ext] = fileparts(file);
             split_file = split(name, '_');
