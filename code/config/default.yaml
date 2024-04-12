@@ -9,7 +9,7 @@
 # └── Skeleton
 
 experiment: {
-  models: ['.'],
+  models: ['LT2000_Selected_10', 'Generator2-AdaPoinTr-Skeleton-GAN_LT2000_CDL1_SkelLoss-Supervised-0.01_Repulsion_CPC-10_Finetune'],
   mode: .,                    # customization
   num_tree: 9,
   exp_folder: AppleQSM,
@@ -17,7 +17,7 @@ experiment: {
   skeleton_folder: Skeleton,
   segmentation_folder: Segmentation,
   characterization_folder: Characterization,
-  data_folder: E:\Result\LLC_02022022\Row13,
+  data_folder: E:\Result\LLC_02022022\Row13_Tree,
   pcd_extension: .pcd,
   mat_extension: .mat,
   # switch
@@ -108,14 +108,15 @@ segmentation: {
     # suggest to set them as default for TLS
     refinement: {
       sphere_radius: 0.02,
-      cpc_num_points_threshold: 40 
+      cpc_num_points_threshold: 0 
     }
   },
   options: {
     DEBUG: False,                   # plot graph prior to MST
-    SEGMENTATION: False,             # branch segmentation from raw pcd
-    TRUNK_REFINEMENT: False,        # trunk skeleton refinement
-    BRANCH_REFINEMENT: False,       # branch skeleton refinement
+    TRUNK_SEGMENTATION: True,     # trunk segmentation from raw pcd
+    BRANCH_SEGMENTATION: False,    # branch segmentation from raw pcd
+    TRUNK_REFINEMENT: True,        # trunk skeleton refinement
+    BRANCH_REFINEMENT: True,       # branch skeleton refinement
     SAVE_PARAS: True,               # save parameters for each tree
     SAVE_FIG: True,                 # plot and save figures
   }
@@ -135,10 +136,10 @@ characterization: {
   ransac_threshold: 0.005,
   ransac_trials: 1000,
   options: {
-    SHOW: True,                   # plot the branch number
+    SHOW: False,                   # plot the branch number
     SHOW_BRANCH: False,            # plot the single branch characterization
     SAVE: True,                    # save characterization results as csv files
     OUTPUT: False,                 # output skeleton infor for Real2Sim data generation
-    PRUNE: True,                   # determine target branches need to be pruned
+    PRUNE: False,                   # determine target branches need to be pruned
   }
 }

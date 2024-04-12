@@ -2,7 +2,8 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
     % plot graph prior to MST
     DEBUG = options.DEBUG;
     % branch segmentation from raw point cloud
-    SEGMENTATION = options.SEGMENTATION;
+    TRUNK_SEGMENTATION = options.TRUNK_SEGMENTATION;
+    BRANCH_SEGMENTATION = options.BRANCH_SEGMENTATION;
     % skeleton refinement
     TRUNK_REFINEMENT = options.TRUNK_REFINEMENT;
     BRANCH_REFINEMENT = options.BRANCH_REFINEMENT;
@@ -20,6 +21,9 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
     seg_mat_filepath = fullfile(output_folder, skel_filename);
     % save segmented trunk and branch pcd files
     segmented_folder = fullfile(output_folder, [tree_id '_branch']);
+    if ~exist(segmented_folder, 'dir')
+        mkdir(segmented_folder);
+    end
     % start logging output to the specified file
     log_filepath = fullfile(output_folder, [tree_id '_log.txt']);
     diary(log_filepath)
@@ -28,8 +32,13 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
     branch_folder = fullfile(options.SEG_PARA.reference_branch_folder{1}, [tree_id '_branch']);
     files = dir(fullfile(branch_folder, 'Section*.ply'));
 
-    %% load data
-    skel_filepath = fullfile(skel_folder, skel_filename);
+    %% load data from segmentation folder if possible
+    % this is to ensure the existing refined mat files won't
+    % be overwritten
+    skel_filepath = fullfile(output_folder, skel_filename);
+    if ~exist(skel_filepath)
+        skel_filepath = fullfile(skel_folder, skel_filename);
+    end
     load(skel_filepath, 'P'); % P results from skeleton operation
 
     % visualization purpose only and show the original point clouds
@@ -353,7 +362,8 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
         Link = linkprop([ax1, ax2], {'CameraUpVector', 'CameraPosition', 'CameraTarget', 'XLim', 'YLim', 'ZLim'});
         setappdata(gcf, 'StoreTheLink', Link);
 
-        if SEGMENTATION
+        if TRUNK_SEGMENTATION
+            trunk_pc = unique_pcd(trunk_pc);
             pcwrite(trunk_pc, fullfile(segmented_folder, 'trunk.pcd'));
         end
     end
@@ -448,6 +458,11 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
     Link = linkprop([ax1, ax2, ax3], {'CameraUpVector', 'CameraPosition', 'CameraTarget', 'XLim', 'YLim', 'ZLim'});
     setappdata(gcf, 'StoreTheLink', Link);
 
+    if SAVE_FIG
+        filename = fullfile(output_folder, [tree_id, '_cluster']);
+        saveas(gcf, filename);
+    end
+
     figure('Name', '1st DBSCAN clusters')
     ax1 = subplot(1, 2, 1);
     pcshow(pt, 'MarkerSize', 30); hold on
@@ -466,7 +481,7 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
     setappdata(gcf, 'StoreTheLink', Link);
 
     if SAVE_FIG
-        filename = fullfile(output_folder, [tree_id, '_cluster']);
+        filename = fullfile(output_folder, [tree_id, '_dbscan_cluster']);
         saveas(gcf, filename);
     end
 
@@ -684,7 +699,7 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
 
         % points are not connected in MST
         if MST_max_length <= 3
-            disp(['===================SKIP BRNACH ' num2str(i) 'Due to MST <= 3 ', num2str(MST_max_length), ' ==================='])
+            disp(['===================SKIP BRNACH ' num2str(i) ' Due to MST <= 3 ', num2str(MST_max_length), ' ==================='])
             continue
         end
 
@@ -966,7 +981,7 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
     ax1 = subplot(1, 2, 1);
     pcshow(pt, 'MarkerSize', 30); hold on
 
-    if SEGMENTATION
+    if BRANCH_SEGMENTATION
         branch_pc_indices = [];
     end
 
@@ -981,11 +996,7 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
         text(tmp_pts(1), tmp_pts(2), tmp_pts(3) + 0.02, num2str(i), 'Color', 'red', 'HorizontalAlignment', 'left', 'FontSize', 12);
 
         % segment indivudal branches from raw point cloud
-        if SEGMENTATION
-            if ~exist(segmented_folder, 'dir')
-                mkdir(segmented_folder);
-            end
-
+        if BRANCH_SEGMENTATION
             voxel_size = options.SEG_PARA.branch.segmentation.voxel_size;
             % iterate over each point in primary_branch_pts
             branch_pc_list = [];
@@ -1010,12 +1021,13 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
                 branch_pc_list = [branch_pc_list, pc_within_voxel];
             end
             branch_pc = pccat(branch_pc_list);
+            branch_pc = unique_pcd(branch_pc);
             % save branch_pc to a file
             pcwrite(branch_pc, fullfile(segmented_folder, ['branch' num2str(i) '.pcd']));
         end
     end
 
-    if SEGMENTATION
+    if BRANCH_SEGMENTATION
         copy_original_pt_location = original_pt_normalized.Location;
         copy_original_pt_color = original_pt_normalized.Color;
         copy_original_pt_location(branch_pc_indices, :) = [];
@@ -1076,6 +1088,8 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
         %%-----------------------------------------------------%%
         %%-------------------Branch CPC-------------------%%
         %%-----------------------------------------------------%%
+        disp('===================Branch Skeleton Refinement===================');
+
         % the ratio of sphere_radius/maximum_length is critical!
         % branch_refinement_options.sphere_radius = 0.02;
         % branch_refinement_options.maximum_length = 0.004;
