@@ -99,20 +99,30 @@ for i = 1:length(models)
     tree_folder = fullfile(data_folder, model, mode);
     skel_folder = fullfile(data_folder, model, mode, exp_folder, skeleton_folder, exp_name);
 
+    segmentation_folder = fullfile(data_folder, model, mode, exp_folder, segmentation_folder, exp_name);
+    % copy config to segmentation folder
+    if ~exist(segmentation_folder, "dir")
+        mkdir(segmentation_folder);
+    end
+
+    characterization_folder = fullfile(data_folder, model, mode, exp_folder, characterization_folder, exp_name);
+    % copy config to characterization folder
+    if ~exist(characterization_folder, "dir")
+        mkdir(characterization_folder);
+    end
+
     % load skeleton files
     mat_files = dir(fullfile(skel_folder, exp_name, ['*' mat_extension]));
     mat_files = natsortfiles(mat_files);
     
     data{i, 1} = model;
-    table_col = {'model_name'};
+    table_col = cell(1, numel(mat_files)+2);
+    table_col{1} = 'model_name';
+    table_col{end} = 'Total';
     if options.SEG_ON
-        segmentation_folder = fullfile(data_folder, model, mode, exp_folder, segmentation_folder, exp_name);
-        % copy config to segmentation folder
-        if ~exist(segmentation_folder, "dir")
-            mkdir(segmentation_folder);
-        end
         copyfile(config_filepath, segmentation_folder);
-        for k = 1:numel(mat_files)
+        % turn on/off parallel computing by parfor/for
+        parfor k = 1:numel(mat_files)
             file = mat_files(k).name;
             [filepath, name, ext] = fileparts(file);
             split_file = split(name, '_');
@@ -120,16 +130,18 @@ for i = 1:length(models)
             disp(['=========Tree ' num2str(tree_id) ' ========='])
             num_primary_branch = segmentation(skel_folder, segmentation_folder, tree_id, options);
             data{i, 1+k} = num_primary_branch;
-            table_col{end+1} = ['tree' num2str(k)];
+            table_col{k+1} = ['tree' num2str(k)];
         end
     
         % compute the total branch #
         data{i, end} = sum(cell2mat(data(i, 2:end-1)));
-        table_col{end+1} = 'Total';
 
         %% Save the table to a CSV file
+        % Remove empty elements from data and column
+        data_row = data(i, ~cellfun('isempty', data(i, :)));
+        table_col = table_col(~cellfun('isempty', table_col));
         % create table
-        T = cell2table(data, 'VariableNames', table_col);    
+        T = cell2table(data_row, 'VariableNames', table_col);    
 
         csv_filepath_output = fullfile(result_folder, 'Branch_Quantity.csv');  % define filename
         % check if the file exists
@@ -146,14 +158,8 @@ for i = 1:length(models)
     end
     
     if options.CHAR_ON
-        segmentation_folder = fullfile(data_folder, model, mode, exp_folder, segmentation_folder, exp_name);
-        characterization_folder = fullfile(data_folder, model, mode, exp_folder, characterization_folder, exp_name);
-        % copy config to characterization folder
-        if ~exist(characterization_folder, "dir")
-            mkdir(characterization_folder);
-        end
-        copyfile(config_filepath, characterization_folder);
 
+        copyfile(config_filepath, characterization_folder);
         % if manual branch matching is performed
         matched_qsm_filepath = fullfile(characterization_folder, '3DGAC_Matched_Branch_Trait.csv');
         if exist(matched_qsm_filepath, 'file')

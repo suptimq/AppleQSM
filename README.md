@@ -9,6 +9,7 @@ This repo contains the implementation of a 3D geometry-based apple tree characte
   - [Statistical and Machine Learning ToolBox](https://www.mathworks.com/products/statistics.html)
   - [Optimization ToolBox](https://www.mathworks.com/products/optimization.html)
   - [Curve Fitting ToolBox](https://www.mathworks.com/products/curvefitting.html)
+  - [Parallel Computing Toolbox](https://www.mathworks.com/products/parallel-computing.html)
   - [YAML Parser](https://www.mathworks.com/matlabcentral/fileexchange/106765-yaml?s_tid=srchtitle_site_search_1_yaml)
   - [NATSORT Function](https://www.mathworks.com/matlabcentral/fileexchange/47433-natural-order-row-sort?s_tid=ta_fx_results)
   - [Point-to-Line-Distance Function](https://www.mathworks.com/matlabcentral/fileexchange/64396-point-to-line-distance?s_tid=srchtitle_support_results_1_point_to_line)

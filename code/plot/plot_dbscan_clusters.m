@@ -23,7 +23,7 @@ function plot_dbscan_clusters(X, IDX)
 
         if i ~= -1
             Style = Styles{rem(i, length(Styles)) + 1};
-            MarkerSize = 30;
+            MarkerSize = 15;
             Color = Colors{rem(i, length(Colors)) + 1};
             % Legends{end + 1} = ['c #' num2str(i + 1)];
             % Legends{end + 1} = ['Node #' num2str(i + 1)];
