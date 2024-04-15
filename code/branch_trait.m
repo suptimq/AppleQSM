@@ -81,6 +81,7 @@ function [T, branch_fig_gcf] = branch_trait(seg_folder, output_folder, tree_id, 
         index = start + 1:start + primary_branch_pts_size;
         primary_branch_pts = P.primary_branch_center(index, :);
         primary_branch_pts_radius = P.primary_branch_radius(index);
+        primary_branch_pts_radius(primary_branch_pts_radius == 0) = NaN;
         primary_branch_pts_radius(primary_branch_pts_radius > P.trunk_radius / 2) = NaN;
 
         % find the internode
@@ -101,6 +102,7 @@ function [T, branch_fig_gcf] = branch_trait(seg_folder, output_folder, tree_id, 
         primary_spline_pts = P.primary_spline_center(index, :);
         kdtree = KDTreeSearcher(primary_branch_pts);
         [spline_nn_index, ~] = knnsearch(kdtree, primary_spline_pts, 'K', 3);
+        % median might generate 0s when two of neighboring are 0
         primary_spline_pts_radius = median(primary_branch_pts_radius(spline_nn_index), 2, 'omitnan');
         
         if all(isnan(primary_branch_pts_radius)) || isempty(primary_spline_pts_radius)
@@ -167,7 +169,7 @@ function [T, branch_fig_gcf] = branch_trait(seg_folder, output_folder, tree_id, 
         if ~isempty(matched_qsm_table)
             [row_index, ~] = find(matched_qsm_table.BranchID_df2 == i & strcmp(matched_qsm_table.Filename, tree_id));
             selected_row = matched_qsm_table(row_index, :);
-            gt_branch_diameter = selected_row.Manual_Branch_Diameter_mm;
+            gt_branch_diameter = selected_row.Primary_Branch_Diameter_mm;
         else
             gt_branch_diameter = nan;
         end
