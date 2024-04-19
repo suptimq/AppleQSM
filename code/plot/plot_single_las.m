@@ -1,6 +1,6 @@
 % Define the folder containing the LAS file
-folder_path = 'F:\FARO\Processed\Lailiang_Cheng\LLC_04022022';
-pc_filepath = fullfile(folder_path, 'downsampled-100x_multi_rows.pcd');
+folder_path = 'D:\Data\Apple_Orchard\Lailiang_Cheng\LLC_04022022';
+pc_filepath = fullfile(folder_path, 'row15.las');
 
 % Load the LAS file
 if endsWith(pc_filepath, '.las')
@@ -8,6 +8,9 @@ if endsWith(pc_filepath, '.las')
     ptCloud = readPointCloud(las_data);
     % Downsample the point cloud
     downsampled_pc = pcdownsample(ptCloud, 'random', 0.01); % Adjust the percentage as needed
+
+    save_filepath = fullfile(folder_path, 'downsampled-100x_pc.pcd');
+    pcwrite(downsampled_pc, save_filepath, 'Encoding', 'ascii')
 else
     downsampled_pc = pcread(pc_filepath);
 end
