@@ -5,11 +5,19 @@ function [T, branch_fig_gcf] = branch_trait(seg_folder, output_folder, tree_id, 
     SAVE = options.SAVE;
     OUTPUT = options.OUTPUT;
     PRUNE = options.PRUNE;
+    BRANCH_SEGMENTATION = options.BRANCH_SEGMENTATION;
+    voxel_size = options.SEG_PARA.branch.segmentation.voxel_size;
 
     % output for CAD tree modeling
     cad_save_folder = fullfile(output_folder, 'Fusion');
     if ~exist(cad_save_folder, 'dir') && OUTPUT
         mkdir(cad_save_folder)
+    end
+
+    % output of coarse branch segmentation
+    segmented_folder = fullfile(seg_folder, [tree_id, '_branch']);
+    if ~exist(segmented_folder, 'dir')
+        mkdir(segmented_folder);
     end
 
     skel_filename_format = '_contract_*_skeleton.mat';
@@ -26,7 +34,6 @@ function [T, branch_fig_gcf] = branch_trait(seg_folder, output_folder, tree_id, 
 
     start = 0;
     spline_start = 0;
-    cut_branch_counter = 0;
     T = table();
     branch_counter = length(P.primary_center_size);
 
@@ -37,9 +44,11 @@ function [T, branch_fig_gcf] = branch_trait(seg_folder, output_folder, tree_id, 
     % calculate y offset (1 m)
     y_offset = (str2double(tree_id(5:end))-1) * 1;
     % offset y to align with orchard setup
-    num_point = size(P.original_pt.Location, 1);
+    original_pt_normalized = P.original_pt;
+    original_pt_normalized = pcdenoise(original_pt_normalized, 'NumNeighbors', 6, 'Threshold', 5);
+    num_point = size(original_pt_normalized.Location, 1);
     pc_color = uint8(repmat([0, 0, 0], num_point, 1));
-    offset_location = P.original_pt.Location;
+    offset_location = original_pt_normalized.Location;
     offset_location(:, 2) = offset_location(:, 2) + y_offset;
     offset_pc = pointCloud(offset_location, 'Color', pc_color);
     if SHOW
@@ -76,6 +85,7 @@ function [T, branch_fig_gcf] = branch_trait(seg_folder, output_folder, tree_id, 
     branch_length_cell = {};
     branch_pts_cell = {};
 
+    branch_pc_indices = [];
     for i = 1:branch_counter
         primary_branch_pts_size = P.primary_center_size(i);
         index = start + 1:start + primary_branch_pts_size;
@@ -115,6 +125,36 @@ function [T, branch_fig_gcf] = branch_trait(seg_folder, output_folder, tree_id, 
         primary_spline_pts_radius = fillmissing(primary_spline_pts_radius, 'linear');
         % in case 'linear' method couldn't resolve all NaN values
         primary_spline_pts_radius = fillmissing(primary_spline_pts_radius, 'nearest');
+
+        % segment indivudal branches from raw point cloud
+        if BRANCH_SEGMENTATION
+            % iterate over each point in primary_branch_pts
+            branch_pc_list = [];
+            for m = 1:size(primary_spline_pts, 1)
+                % get current point
+                current_point = primary_spline_pts(m, :);
+                % refine the bounds of the local voxel
+                % use a smaller voxel in the junction area
+                if m == 1
+                    factor = 4;
+                else
+                    factor = 1;
+                end
+                voxel_bounds = [current_point(1)-voxel_size/factor/2, current_point(1)+voxel_size/factor/2, ...
+                                                current_point(2)-voxel_size/factor/2, current_point(2)+voxel_size/factor/2, ...
+                                                current_point(3)-voxel_size/factor/2, current_point(3)+voxel_size/factor/2];
+                % select points within the voxel bounds from original_pcd
+                indices_within_voxel = findPointsInROI(original_pt_normalized, voxel_bounds);
+                pc_within_voxel = select(original_pt_normalized, indices_within_voxel);
+                branch_pc_indices = [branch_pc_indices; indices_within_voxel];
+                % for concatenation
+                branch_pc_list = [branch_pc_list, pc_within_voxel];
+            end
+            branch_pc = pccat(branch_pc_list);
+            branch_pc = unique_pcd(branch_pc);
+            % save branch_pc to a file
+            pcwrite(branch_pc, fullfile(segmented_folder, ['branch' num2str(i) '.pcd']));
+        end
 
         primary_branch_pts_distance = sqrt(sum(diff([trunk_internode; primary_spline_pts]).^2, 2));        % append trunk internode to the first
         primary_branch_length = cumsum(primary_branch_pts_distance);
@@ -224,6 +264,12 @@ function [T, branch_fig_gcf] = branch_trait(seg_folder, output_folder, tree_id, 
         spline_start = spline_start + primary_spline_pts_size;
     end
 
+    if BRANCH_SEGMENTATION
+        all_indices = 1:num_point;
+        rest_indices = setdiff(all_indices, branch_pc_indices);
+        rest_tree_pcd = select(original_pt_normalized, rest_indices);
+        pcwrite(rest_tree_pcd, fullfile(segmented_folder, 'rest_tree.pcd'));
+    end
 
     if PRUNE
         %% pruning determination
