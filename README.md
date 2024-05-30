@@ -39,7 +39,7 @@ experiment: {
   data_folder: E:\Result\LLC_02022022\Row13,
   pcd_extension: .pcd,
   mat_extension: .mat,
-  # switch
+  # switch (suggested to turn on one-by-one)
   SKEL_ON: False,                     # turn on skeletonization
   SEG_ON: False,                     # turn on segmentation
   CHAR_ON: False,                    # turn on characterization
