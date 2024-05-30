@@ -23,7 +23,7 @@ experiment: {
   # switch
   SKEL_ON: True,                     # turn on skeletonization
   SEG_ON: False,                     # turn on segmentation
-  CHAR_ON: True,                    # turn on characterization
+  CHAR_ON: False,                    # turn on characterization
 }
 
 skeleton: {
@@ -114,12 +114,12 @@ segmentation: {
   },
   options: {
     DEBUG: False,                   # plot graph prior to MST
-    TRUNK_SEGMENTATION: True,     # trunk segmentation from raw pcd
-    BRANCH_SEGMENTATION: True,    # branch segmentation from raw pcd
-    TRUNK_REFINEMENT: True,        # trunk skeleton refinement
-    BRANCH_REFINEMENT: True,       # branch skeleton refinement
-    SAVE_PARAS: True,               # save parameters for each tree
-    SAVE_FIG: True,                 # plot and save figures
+    TRUNK_SEGMENTATION: False,     # trunk segmentation from raw pcd
+    BRANCH_SEGMENTATION: False,    # branch segmentation from raw pcd
+    TRUNK_REFINEMENT: False,        # trunk skeleton refinement
+    BRANCH_REFINEMENT: False,       # branch skeleton refinement
+    SAVE_PARAS: False,               # save parameters for each tree
+    SAVE_FIG: False,                 # plot and save figures
   }
 }
 
