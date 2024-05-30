@@ -1,0 +1,146 @@
+### ====================================== ###
+###               Attention                ###
+### ====================================== ###
+# The overall data folder structure looks like
+# {exp_folder}
+# ├── Characterization
+# ├── Fusion
+# ├── Segmentation
+# └── Skeleton
+
+experiment: {
+  models: [''],
+  mode: .,                    # customization
+  num_tree: 9,
+  exp_folder: AppleQSM,
+  exp_name: ,                       # leave it empty if you dont want a specific one
+  skeleton_folder: Skeleton,
+  segmentation_folder: Segmentation,
+  characterization_folder: Characterization,
+  data_folder: {DATA_PATH},
+  pcd_extension: .pcd,
+  mat_extension: .mat,
+  # switch
+  SKEL_ON: True,                     # turn on skeletonization
+  SEG_ON: False,                     # turn on segmentation
+  CHAR_ON: True,                    # turn on characterization
+}
+
+skeleton: {
+  bin_size: 5,                        # Bin size of a histogram, smaller -> higher resolution
+  num_iteration: 7,                   # Hilbert Curve order, larger -> higher resolution
+  downsample_num: 50000,              # target #points after downsampling
+  downsample_mode: 1,                 # 1-Hilbert Curve, 2-Random, 3-Grid
+  density_mode: 2,                    # 1-Hilbert Curve, 2-KNN
+  gridStep: 0.0048,                   # if use Grid subsampling
+  ### ====================================== ###
+  ###               Attention                ###
+  ### ====================================== ###
+  ### this factor is IMPORTANT
+  ### a large factor leads to a sparse skeleton 
+  sample_radius_factor: 0.006,
+}
+
+segmentation: {
+  # this refers to the ground-truth segmented branches if you have
+  reference_branch_folder: D:\Data\Apple_Orchard\Lailiang_Cheng\LLC_02022022\Row13_Primary,
+  trunk: {
+    distance_th_lambda1: 0.1,
+    entire_graph_refine_mode: distance,
+    ### ====================================== ###
+    ###               Attention                ###
+    ### ====================================== ###
+    ### this coefficient is IMPORTANT, balancing the thickness and distance
+    ### alpha1 is for BA MST and alpha2 is for trunk segmentation
+    graph_edge_coefficient_alpha1: 0.6,         
+    graph_edge_coefficient_alpha2: 0.4,
+    slice_range_z_axis: 0.05,               # height threshold for trunk diameter estimation
+    ransac_trunk_diameter_min_sample: 30,
+    ransac_trunk_diameter_threshold: 0.005,
+    ransac_trunk_diameter_trials: 100,
+    trunk_branch_seg_dbscan_eps_factor: 2,  # multiplier of sample_radius_factor to determine dbscan eps
+    # suggest to set them as default for TLS
+    refinement: {
+      z_radius: 0.02,                       # cross-section height
+      maximum_length: 0.005,                # sub cross-section height to satisfy CPC assumption
+      N: 10,                                # #skeleton points in local RANSAC
+      M: 100                                # #skeleton points sampled from the spline
+    },
+    # whether use refined trunk for branch clustering
+    # turn on this might reduce the branch count
+    use_refined_trunk: False
+  },
+  branch: {
+    ### ====================================== ###
+    ###               Attention                ###
+    ### ====================================== ###
+    ### this factor is IMPORTANT
+    ### a large factor leads to complex branch root clustering 
+    sphere_radius_factor: 6,
+    branch_seg_dbscan_eps_factor: 1.5,
+    branch_seg_dbscan_min_samples: 3,
+    post_process_cluster: {
+      ### ====================================== ###
+      ###               Attention                ###
+      ### ====================================== ###
+      # the larger number is the looser the constraint is
+      # the 1st is line-to-line distance threshold
+      # the 2nd is the factor for point-to-point distance
+      line_distance_threshold: 0.06,
+      point_distance_threshold_factor: 3.5,
+      # if ransac failed to fit sliced_trunk, increase the z_search_range or minimum_trunk_points
+      z_search_range: 0.1,
+      minimum_trunk_points: 3,     # recommend to be at least twice as the ransac_min_sample
+      ransac_min_sample: 3,
+      ransac_threshold: 0.005,
+      ransac_trials: 1000
+    },
+    branch_distance_th_lambda2: 0.02,
+    subgraph_refine_mode: distance,
+    subgraph_edge_coefficient_alpha2: 0.8,
+    post_process_branch: {
+      noise_threshold: 10,
+      merge_threshold: 0.2,
+    },
+    ### this is to segment branches from raw point cloud
+    segmentation: {
+      voxel_size: 0.02            # points inside this voxel will be segmented
+    },
+    # suggest to set them as default for TLS
+    refinement: {
+      sphere_radius: 0.02,
+      cpc_num_points_threshold: 40
+    }
+  },
+  options: {
+    DEBUG: False,                   # plot graph prior to MST
+    TRUNK_SEGMENTATION: True,     # trunk segmentation from raw pcd
+    BRANCH_SEGMENTATION: True,    # branch segmentation from raw pcd
+    TRUNK_REFINEMENT: True,        # trunk skeleton refinement
+    BRANCH_REFINEMENT: True,       # branch skeleton refinement
+    SAVE_PARAS: True,               # save parameters for each tree
+    SAVE_FIG: True,                 # plot and save figures
+  }
+}
+
+characterization: {
+  diameter_start_idx: 1,
+  ### ====================================== ###
+  ###               Attention                ###
+  ### ====================================== ###
+  # #points to be average for diameter and angle calculation
+  # this # might impact the accuracy (need to tune experimentally)
+  diameter_K: 4,
+  angle_K: 4,
+  slice_range_z_axis: 0.2,               # height threshold for sliced trunk selection
+  ransac_min_sample: 3,
+  ransac_threshold: 0.005,
+  ransac_trials: 1000,
+  options: {
+    SHOW: False,                   # plot the branch number
+    SHOW_BRANCH: False,            # plot the single branch characterization
+    SAVE: False,                    # save characterization results as csv files
+    OUTPUT: False,                 # output skeleton infor for Real2Sim data generation
+    PRUNE: False,                   # determine target branches need to be pruned
+  }
+}
