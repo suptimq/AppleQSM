@@ -51,6 +51,7 @@ experiment: {
 
 The entry file is `characterizer.m`. Please read this file in detail if it is the first time you are using **AppleQSM**. The code should be easy to understand without going into detailed functions. The above `SKEL_ON`, `SEG_ON`, and `CHAR_ON` are to turn on the **tree skeletonization**, **tree structure segmentation (i.e., trunk/branch instance segmentation)**, and **trait extraction**. It is recommended to only leave one of them on so you can check the stage-wise results before moving forward.
 
+
 ## Skeletonization
 
 ### Hilbert Curve Downsampling
@@ -178,3 +179,18 @@ Estimate the diameter of branches by a voting method that consists of a 3D circl
     - **reference vector** - typically the 1st branch segmention direction
     - **maximum angular distance**
 
+-------------------------------------------------------
+
+If you find our code helpful for your research, please cite
+
+```
+@article{qiu2024appleqsm,
+  title={AppleQSM: Geometry-Based 3D Characterization of Apple Tree Architecture in Orchards},
+  author={Qiu, Tian and Wang, Tao and Han, Tao and Kuehn, Kaspar and Cheng, Lailiang and Meng, Cheng and Xu, Xiangtao and Xu, Kenong and Jiang, Yu},
+  journal={Plant Phenomics},
+  year={2024},
+  publisher={AAAS}
+}
+```
+
+Please contact me (tq42@cornell.edu) if you have any questions!
