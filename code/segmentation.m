@@ -532,7 +532,8 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
 
     mean_internode_point_distance = mean(internode_point_distance);
     std_internode_point_distance = std(internode_point_distance);
-    point_distance_threshold = mean_internode_point_distance + 100 * std_internode_point_distance;
+    point_distance_threshold_factor = options.SEG_PARA.branch.post_process_cluster.point_distance_threshold_factor;
+    point_distance_threshold = mean_internode_point_distance + point_distance_threshold_factor * std_internode_point_distance;
 
     for i = 1:length(unique_cluster_label)
 
