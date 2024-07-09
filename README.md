@@ -15,7 +15,7 @@ This repo contains the implementation of a 3D geometry-based apple tree characte
   - [Curve Fitting ToolBox](https://www.mathworks.com/products/curvefitting.html)
   - [Parallel Computing Toolbox](https://www.mathworks.com/products/parallel-computing.html)
   - [YAML Parser](https://www.mathworks.com/matlabcentral/fileexchange/106765-yaml?s_tid=srchtitle_site_search_1_yaml)
-  - [NATSORT Function](https://www.mathworks.com/matlabcentral/fileexchange/47433-natural-order-row-sort?s_tid=ta_fx_results)
+  - [NATSORT Function](https://www.mathworks.com/matlabcentral/fileexchange/47434-natural-order-filename-sort)
   - [Point-to-Line-Distance Function](https://www.mathworks.com/matlabcentral/fileexchange/64396-point-to-line-distance?s_tid=srchtitle_support_results_1_point_to_line)
   - [Line-Line Intersection](https://www.mathworks.com/matlabcentral/fileexchange/59805-line-line-intersection-n-lines-d-space)
   - [matGeom](https://www.mathworks.com/matlabcentral/fileexchange/107370-matgeom)
@@ -55,6 +55,9 @@ experiment: {
 
 The entry file is `characterizer.m`. Please read this file in detail if it is the first time you are using **AppleQSM**. The code should be easy to understand without going into detailed functions. The above `SKEL_ON`, `SEG_ON`, and `CHAR_ON` are to turn on the **tree skeletonization**, **tree structure segmentation (i.e., trunk/branch instance segmentation)**, and **trait extraction**. It is recommended to only leave one of them on so you can check the stage-wise results before moving forward.
 
+## Data
+
+Please find the data used in this study [here](https://figshare.com/articles/dataset/AppleQSM-Row13/26215094).
 
 -------------------------------------------------------
 
