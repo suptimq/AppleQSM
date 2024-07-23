@@ -1,6 +1,7 @@
 % Define the folder containing PCD files
-folder_path = 'E:\Result\LLC_02022022\Row13\Generator2-AdaPoinTr-Skeleton-GAN_FTB55-v2_CDL1_SkelLoss-Coordinate-Only-Supervised-0.01_Repulsion_CPC-2nd-Stage_Finetune\Primary\tree1_segmented'; % 
-output_folder = 'C:\Users\tq42\OneDrive - Cornell University\Branch_Completion_2023\Tree1';
+% folder_path = 'E:\Result\LLC_02022022\Row13\Generator2-AdaPoinTr-Skeleton-GAN_FTB55-v2_CDL1_SkelLoss-Coordinate-Only-Supervised-0.01_Repulsion_CPC-2nd-Stage_Finetune\Primary\tree1_segmented'; % 
+folder_path = 'D:\Data\Apple_Orchard\Lailiang_Cheng\LLC_02022022\Row13_Primary\tree1_branch';
+output_folder = 'C:\Users\tq42\OneDrive - Cornell University\Branch_Completion_2023\Tree1\Raw_Branch';
 
 % Get a list of all PCD files in the folder
 pcd_files = dir(fullfile(folder_path, '*.pcd'));
@@ -24,6 +25,8 @@ for i = 1:numel(pcd_files)
         num_points = size(pcd_data.Location, 1);
         black_color = repmat([0, 0, 0], num_points, 1);
         pcd_with_black_color = pointCloud(pcd_data.Location, 'Color', black_color);
+    else
+        pcd_with_black_color = pcd_data;
     end
 
     % Plot and save PNG image
@@ -40,5 +43,23 @@ for i = 1:numel(pcd_files)
     view([90, 0]);
     filename = fullfile(output_folder, [name, '.png']);
     saveas(fig, filename); % Save figure as PNG image
+
+    % Create video writer object
+    video_filepath = fullfile(output_folder, [name '_map.avi']);
+    writerObj = VideoWriter(video_filepath); % Specify the file name and format
+    writerObj.FrameRate = 10; % Set the frame rate (frames per second)
+    open(writerObj); % Open the video writer
+    
+    % Capture each frame of the plot and write it to the video file
+    for t = 1:100 % Change the range as needed
+        % Rotate the plot for each frame (optional)
+        view(3*t, 20);
+        % Capture the current frame
+        frame = getframe(gcf);
+        % Write the frame to the video file
+        writeVideo(writerObj, frame);
+    end
+    close(writerObj); % Close the video writer
+
     close(fig); % Close the figure
 end
