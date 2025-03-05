@@ -1,4 +1,4 @@
-function [primary_branch_counter] = segmentation(skel_folder, output_folder, tree_id, options)
+function [main_trunk_height, trunk_radius, primary_branch_counter] = segmentation(skel_folder, output_folder, tree_id, options)
     % plot graph prior to MST
     DEBUG = options.DEBUG;
     % branch segmentation from raw point cloud
@@ -205,7 +205,8 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
 
     % main trunk refinement (heritage issue)
     disp('===================Trunk Skeleton Refinement (Heritage)===================');
-    P.main_trunk_height = main_trunk_endpoint(3) - min(P.spls(:, 3)); % height before normalization
+    main_trunk_height = main_trunk_endpoint(3) - min(P.spls(:, 3)); % height before normalization
+    P.main_trunk_height = main_trunk_height;
     main_trunk_refine_range = P.sample_radius;
     new_main_trunk_pts_idx = zeros(0, 1);
 

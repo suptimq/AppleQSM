@@ -5,9 +5,10 @@ path('plot', path);
 path('refinement', path);
 path('config', path);
 path('skeleton', path);
+path('subsample', path);
 
 %% Configuration
-config_filepath = "config\default.yaml";
+config_filepath = "config/reconstruction.yaml";
 config = yaml.loadFile(config_filepath);
 
 % load experimental parameters
@@ -17,7 +18,7 @@ mat_extension = config.experiment.mat_extension{1};
 data_folder = config.experiment.data_folder{1};
 models = config.experiment.models;
 mode  = config.experiment.mode{1};
-if yaml.isNull(config.experiment.exp_name)
+if isempty(config.experiment.exp_name)
     exp_name='.';
 else
     exp_name = config.experiment.exp_name{1};
@@ -100,38 +101,56 @@ end
 
 if options.SEG_ON
     copyfile(config_filepath, segmentation_folder);
-    branch_quantity_table = {};
-    branch_quantity_table_col = {};
+
+    % Initialize the table as a cell array
+    result_table = {};
+    
+    % Loop through each file
     for k = 1
         file = mat_files(k).name;
         [filepath, name, ext] = fileparts(file);
-        split_file = split(name, '_');
-        tree_id = split_file{1};
-        disp(['=========Tree ' num2str(tree_id) ' ========='])
-        num_primary_branch = segmentation(skel_folder, segmentation_folder, tree_id, options);
-        branch_quantity_table{end+1} = num_primary_branch;
-        branch_quantity_table_col{end+1} = ['tree' num2str(k)];
+        index = strfind(name, 'contract');
+        tree_id = name(1:index-2); % Extract tree name
+        disp(['=========Tree ' num2str(tree_id) ' =========']);
+    
+        % Call the segmentation function to get trunk_radius and num_primary_branch
+        [trunk_height, trunk_radius, num_primary_branch] = segmentation(skel_folder, segmentation_folder, tree_id, options);
+    
+        % Append the results to the table
+        result_table{end+1, 1} = tree_id; % Tree name
+        result_table{end, 2} = round(trunk_height*100, 2); % Trunk height
+        result_table{end, 3} = round(trunk_radius*2*100, 2); % Trunk radius
+        result_table{end, 4} = num_primary_branch; % Number of primary branches
     end
-
-    % compute the total branch #
-    branch_quantity_table{end+1} = sum(cell2mat(branch_quantity_table(1:end)));
-    branch_quantity_table_col{end+1} = 'Total';
-
-    %% Save the table to a CSV file
-    % create table
-    T = cell2table(branch_quantity_table, 'VariableNames', branch_quantity_table_col);    
-
-    csv_filepath_output = fullfile(result_folder, 'Branch_Quantity.csv');  % define filename
-    % check if the file exists
+    
+    % Compute the total trunk radius and total number of primary branches
+    total_trunk_height = sum(cell2mat(result_table(:, 2)));
+    total_trunk_radius = sum(cell2mat(result_table(:, 3)));
+    total_num_primary_branch = sum(cell2mat(result_table(:, 4)));
+    
+    % Append the totals to the table
+    result_table{end+1, 1} = 'Total';
+    result_table{end, 2} = total_trunk_height;
+    result_table{end, 3} = total_trunk_radius;
+    result_table{end, 4} = total_num_primary_branch;
+    
+    % Convert the cell array to a table
+    T = cell2table(result_table, 'VariableNames', {'ModelName', 'TrunkHeight/cm', 'TrunkDiameter/cm', 'NumPrimaryBranch'});
+    
+    % Define the output CSV file path
+    csv_filepath_output = fullfile(result_folder, 'Branch_Quantity.csv');
+    
+    % Check if the file exists and save/append accordingly
     if exist(csv_filepath_output, 'file')
-        % if the file exists, append the data
+        % If the file exists, append the data
         writetable(T, csv_filepath_output, 'WriteMode', 'append');
         disp(['Branch quantity appended to: ' csv_filepath_output]);
     else
-        % if the file does not exist, write the data to a new file
-        writetable(T, csv_filepath_output);  % wsrite table to CSV file
+        % If the file does not exist, write the data to a new file
+        writetable(T, csv_filepath_output);
         disp(['Branch quantity saved to: ' csv_filepath_output]);
     end
+
 
 end
 
