@@ -1,8 +1,9 @@
-function [primary_branch_counter] = segmentation(skel_folder, output_folder, tree_id, options)
+function [main_trunk_height, trunk_radius, primary_branch_counter] = segmentation(skel_folder, output_folder, tree_id, options)
     % plot graph prior to MST
     DEBUG = options.DEBUG;
     % branch segmentation from raw point cloud
-    SEGMENTATION = options.SEGMENTATION;
+    TRUNK_SEGMENTATION = options.TRUNK_SEGMENTATION;
+    BRANCH_SEGMENTATION = options.BRANCH_SEGMENTATION;
     % skeleton refinement
     TRUNK_REFINEMENT = options.TRUNK_REFINEMENT;
     BRANCH_REFINEMENT = options.BRANCH_REFINEMENT;
@@ -15,9 +16,14 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
     if isnan(skel_filename)
         disp('===================Characterization Failure===================');
         error([skel_filename 'Not Found']);
-    end    
+    end
+    % save updated mat file
+    seg_mat_filepath = fullfile(output_folder, skel_filename);
     % save segmented trunk and branch pcd files
     segmented_folder = fullfile(output_folder, [tree_id '_branch']);
+    if ~exist(segmented_folder, 'dir')
+        mkdir(segmented_folder);
+    end
     % start logging output to the specified file
     log_filepath = fullfile(output_folder, [tree_id '_log.txt']);
     diary(log_filepath)
@@ -26,8 +32,13 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
     branch_folder = fullfile(options.SEG_PARA.reference_branch_folder{1}, [tree_id '_branch']);
     files = dir(fullfile(branch_folder, 'Section*.ply'));
 
-    %% load data
-    skel_filepath = fullfile(skel_folder, skel_filename);
+    %% load data from segmentation folder if possible
+    % this is to ensure the existing refined mat files won't
+    % be overwritten
+    skel_filepath = fullfile(output_folder, skel_filename);
+    if ~exist(skel_filepath)
+        skel_filepath = fullfile(skel_folder, skel_filename);
+    end
     load(skel_filepath, 'P'); % P results from skeleton operation
 
     % visualization purpose only and show the original point clouds
@@ -51,7 +62,7 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
 
     %% show skeleton and original point cloud
     figure('Name', 'Original point cloud and its skeleton');
-    pcshow(pt, 'markersize', 30); hold on;
+    plot3(pt.Location(:,1), pt.Location(:,2), pt.Location(:,3), '.', 'MarkerSize', 10); hold on
     set(gcf, 'color', 'white'); set(gca, 'color', 'white');
     plot3(P.spls(:, 1), P.spls(:, 2), P.spls(:, 3), '.r', 'markersize', 20);
     axis equal;
@@ -78,7 +89,7 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
     if DEBUG
         figure('Name', 'Refined skeleton connectivity')
         colore = [1, .0, .0]; sizee = 2;
-        pcshow(P.spls, 'markersize', 80); hold on;
+        plot3(pt.Location(:,1), pt.Location(:,2), pt.Location(:,3), '.', 'MarkerSize', 10); hold on
         plot_connectivity(P.spls, adj_matrix, sizee, colore);
         axis equal;
     end
@@ -135,7 +146,7 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
     P.inverse_weighted_graph = inverse_weighted_graph;
     P.inverse_weighted_graph_edge_weight = graph_weight;
     P.mst_spls_adj = MST_adj_matrix;
-    save(skel_filepath, 'P');
+    save(seg_mat_filepath, 'P');
 
     %% compute the edge weights from each MST node to the root point
     % main trunk end point is the one with the maximum path density_weight
@@ -168,31 +179,19 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
         shortest_path_distance(i) = distance;
     end
 
-    maxk_counter = 1;
-    z_threshold = options.SEG_PARA.trunk.z_threshold;
-    z_difference = ones(z_threshold, 1) * -1;
-    [~, maxk_index] = maxk(shortest_path_distance, size(P.spls, 1));
-    while sum(z_difference < 0) >= z_threshold
-        main_trunk_pts_idx = shortest_path_nodes{maxk_index(maxk_counter)}';
-        main_trunk_pts = P.spls(main_trunk_pts_idx, :);
-        
-        main_trunk_pts_right_shift = main_trunk_pts;
-        main_trunk_pts_right_shift(1, :) = [];
-        main_trunk_pts_right_shift(end+1, :) = [0, 0, 0];
-        z_difference = main_trunk_pts_right_shift(:, 3) - main_trunk_pts(:, 3);
-        maxk_counter = maxk_counter + 1;
-    end
-
+    [~, max_index] = max(shortest_path_distance);
+    main_trunk_pts_idx = shortest_path_nodes{max_index}';
+    main_trunk_pts = P.spls(main_trunk_pts_idx, :);
     main_trunk_endpoint = main_trunk_pts(end, :);
     main_trunk_pts = sortrows(main_trunk_pts, 3); % sort by height
     [~, main_trunk_pts_idx] = ismember(main_trunk_pts, P.spls, 'row');
 
     P.coarse_main_trunk_pts = main_trunk_pts;
     P.coarse_main_trunk_pts_index = main_trunk_pts_idx;
-    save(skel_filepath, 'P');
+    save(seg_mat_filepath, 'P');
 
     figure('Name', 'Coarse main trunk')
-    pcshow(pt, 'markersize', 20); hold on
+    plot3(pt.Location(:,1), pt.Location(:,2), pt.Location(:,3), '.', 'MarkerSize', 10); hold on
     set(gcf, 'color', 'white'); set(gca, 'color', 'white', 'XColor', 'black', 'YColor', 'black', 'ZColor', 'black');
     plot3(main_trunk_pts(:, 1), main_trunk_pts(:, 2), main_trunk_pts(:, 3), '.r', 'markersize', 30);
     xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
@@ -203,11 +202,11 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
     disp(['root point search range: ' num2str(root_point_search_range)]);
 
     disp(['graph edge coefficient alpha2: ' num2str(coefficient_density_weight)]);
-    disp(['z threshold: ' num2str(z_threshold)]);
 
     % main trunk refinement (heritage issue)
     disp('===================Trunk Skeleton Refinement (Heritage)===================');
-    P.main_trunk_height = main_trunk_endpoint(3) - min(P.spls(:, 3)); % height before normalization
+    main_trunk_height = main_trunk_endpoint(3) - min(P.spls(:, 3)); % height before normalization
+    P.main_trunk_height = main_trunk_height;
     main_trunk_refine_range = P.sample_radius;
     new_main_trunk_pts_idx = zeros(0, 1);
 
@@ -240,7 +239,7 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
     rest_pts = P.spls(rest_pts_idx, :);
 
     P.all_branch_pts = rest_pts;
-    save(skel_filepath, 'P');
+    save(seg_mat_filepath, 'P');
 
     disp(['main trunk refine range: ' num2str(main_trunk_refine_range)]);
 
@@ -262,6 +261,7 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
         min_samples = min_samples / 2;
 
         if min_samples < 5
+            disp('===================Characterization Failure===================');
             error('Not Enough Points for Trunk Diameter Estimation!');
         end
 
@@ -284,6 +284,7 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
     % ellipse fitting
     [ellipse, inliers, outliers] = ransac_py(largest_trunk_cluster_pts(:, 1:2), 'Ellipse', min_samples, residual_threshold, max_trials);
     if isnan(ellipse)
+        disp('===================Characterization Failure===================');
         error('===================Trunk Diameter Estimation Failed Due to Failed RANSAC  ===================');
     end
     xc = ellipse(1); yc = ellipse(2); radius_x = ellipse(3); radius_y = ellipse(4); theta = ellipse(5); trunk_radius = (radius_x + radius_y) / 2;
@@ -320,7 +321,7 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
     P.trunk_diameter_pts = largest_trunk_cluster_pts(inliers_idx, :);
     P.trunk_diameter_ellipse = ellipse;
     P.trunk_radius = trunk_radius;
-    save(skel_filepath, 'P');
+    save(seg_mat_filepath, 'P');
 
     if TRUNK_REFINEMENT
         %%---------------------------------------------------%%
@@ -338,7 +339,7 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
         P.trunk_cpc_optimized_radius = trunk_cpc_optimized_radius;
         P.trunk_cpc_optimized_confidence = trunk_cpc_optimized_confidence;
         P.trunk_pc = trunk_pc;
-        save(skel_filepath, 'P');
+        save(seg_mat_filepath, 'P');
 
         disp(['xy radius: ' num2str(trunk_refinement_options.xy_radius)]);
         disp(['z radius: ' num2str(trunk_refinement_options.z_radius)]);
@@ -349,7 +350,7 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
 
         figure('Name', 'Optimized skeleton pts')
         ax1 = subplot(1, 2, 1);
-        pcshow(trunk_pc, 'MarkerSize', 30); hold on
+        plot3(trunk_pc.Location(:,1), trunk_pc.Location(:,2), trunk_pc.Location(:,3), '.', 'MarkerSize', 10); hold on
         plot3(trunk_cpc_optimized_center(:, 1), trunk_cpc_optimized_center(:, 2), trunk_cpc_optimized_center(:, 3), '.r', 'MarkerSize', 30)
         title('Skeleton pts', 'color', [1, 0, 0])
         xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
@@ -362,7 +363,13 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
         Link = linkprop([ax1, ax2], {'CameraUpVector', 'CameraPosition', 'CameraTarget', 'XLim', 'YLim', 'ZLim'});
         setappdata(gcf, 'StoreTheLink', Link);
 
-        if SEGMENTATION
+        if SAVE_FIG
+            filename = fullfile(output_folder, [tree_id, '_tree_trunk_cpc']);
+            saveas(gcf, filename);
+        end
+
+        if TRUNK_SEGMENTATION
+            trunk_pc = unique_pcd(trunk_pc);
             pcwrite(trunk_pc, fullfile(segmented_folder, 'trunk.pcd'));
         end
     end
@@ -381,16 +388,16 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
     ratio_distance_list = [0, cumsum(distance_list) / sum(distance_list)];
     P.main_trunk_length = sum(distance_list);
     P.trunk_internode_distance_ratio = ratio_distance_list;
-    save(skel_filepath, 'P');
+    save(seg_mat_filepath, 'P');
 
     figure('Name', 'Refined main trunk')
-    pcshow(pt, 'markersize', 20); hold on
+    plot3(pt.Location(:,1), pt.Location(:,2), pt.Location(:,3), '.', 'MarkerSize', 10); hold on
     set(gcf, 'color', 'white'); set(gca, 'color', 'white', 'XColor', 'black', 'YColor', 'black', 'ZColor', 'black');
     plot3(refined_main_trunk_pts(:, 1), refined_main_trunk_pts(:, 2), refined_main_trunk_pts(:, 3), '.r', 'markersize', 30);
     xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
 
     figure('Name', 'Tree architecture trait')
-    pcshow(pt, 'markersize', 20); hold on
+    plot3(pt.Location(:,1), pt.Location(:,2), pt.Location(:,3), '.', 'MarkerSize', 10); hold on
     set(gcf, 'color', 'white'); set(gca, 'color', 'white', 'XColor', 'black', 'YColor', 'black', 'ZColor', 'black');
     plot3(refined_main_trunk_pts(:, 1), refined_main_trunk_pts(:, 2), refined_main_trunk_pts(:, 3), '.r', 'markersize', 15);
     plot3(rest_pts(:, 1), rest_pts(:, 2), rest_pts(:, 3), '.b', 'markersize', 15);
@@ -435,15 +442,15 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
     ax1 = subplot(1, 3, 1);
     plot3(P.spls(:, 1), P.spls(:, 2), P.spls(:, 3), '.', 'Color', PC_COLOR, 'Markersize', 20); hold on
     plot3(refined_main_trunk_pts(:, 1), refined_main_trunk_pts(:, 2), refined_main_trunk_pts(:, 3), '.r', 'markersize', 30);
-    plot3(crotch_pts(:, 1), crotch_pts(:, 2), crotch_pts(:, 3), '.b', 'markersize', 30);
+    plot3(crotch_pts(:, 1), crotch_pts(:, 2), crotch_pts(:, 3), '.b', 'markersize', 15);
     title('Crotch points w/ raw trunk skeleton points', 'color', [1, 0, 0]);
     xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
 
     ax2 = subplot(1, 3, 2);
     plot3(refined_main_trunk_pts(:, 1), refined_main_trunk_pts(:, 2), refined_main_trunk_pts(:, 3), '.r', 'markersize', 30); hold on
-    plot3(rest_pts(:, 1), rest_pts(:, 2), rest_pts(:, 3), '.', 'Color', PC_COLOR, 'Markersize', 30);
-    plot3(noise_pts(:, 1), noise_pts(:, 2), noise_pts(:, 3), '.black', 'markersize', 30);
-    plot3(crotch_pts(:, 1), crotch_pts(:, 2), crotch_pts(:, 3), '.b', 'markersize', 30);
+    plot3(rest_pts(:, 1), rest_pts(:, 2), rest_pts(:, 3), '.', 'Color', PC_COLOR, 'Markersize', 15);
+    plot3(noise_pts(:, 1), noise_pts(:, 2), noise_pts(:, 3), '.black', 'markersize', 15);
+    plot3(crotch_pts(:, 1), crotch_pts(:, 2), crotch_pts(:, 3), '.b', 'markersize', 15);
     title('Crotch points w/ uniform trunk skeleton points', 'color', [1, 0, 0]);
     xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
 
@@ -457,16 +464,21 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
     Link = linkprop([ax1, ax2, ax3], {'CameraUpVector', 'CameraPosition', 'CameraTarget', 'XLim', 'YLim', 'ZLim'});
     setappdata(gcf, 'StoreTheLink', Link);
 
+    if SAVE_FIG
+        filename = fullfile(output_folder, [tree_id, '_cluster']);
+        saveas(gcf, filename);
+    end
+
     figure('Name', '1st DBSCAN clusters')
     ax1 = subplot(1, 2, 1);
-    pcshow(pt, 'MarkerSize', 30); hold on
+    plot3(pt.Location(:,1), pt.Location(:,2), pt.Location(:,3), '.', 'MarkerSize', 10); hold on
     plot3(refined_main_trunk_pts(:, 1), refined_main_trunk_pts(:, 2), refined_main_trunk_pts(:, 3), '.r', 'markersize', 30);
-    plot3(crotch_pts(:, 1), crotch_pts(:, 2), crotch_pts(:, 3), '.b', 'markersize', 30);
+    plot3(crotch_pts(:, 1), crotch_pts(:, 2), crotch_pts(:, 3), '.b', 'markersize', 15);
     title('Crotch points')
     xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
 
     ax2 = subplot(1, 2, 2);
-    pcshow(pt, 'markersize', 40); hold on
+    plot3(pt.Location(:,1), pt.Location(:,2), pt.Location(:,3), '.', 'MarkerSize', 10); hold on
     plot_dbscan_clusters(crotch_pts, cluster_label);
     xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
     title(['Initial clusters: ', num2str(length(unique_cluster_label))], 'color', [1, 0, 0]);
@@ -475,7 +487,7 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
     setappdata(gcf, 'StoreTheLink', Link);
 
     if SAVE_FIG
-        filename = fullfile(output_folder, [tree_id, '_cluster']);
+        filename = fullfile(output_folder, [tree_id, '_dbscan_cluster']);
         saveas(gcf, filename);
     end
 
@@ -521,7 +533,8 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
 
     mean_internode_point_distance = mean(internode_point_distance);
     std_internode_point_distance = std(internode_point_distance);
-    point_distance_threshold = mean_internode_point_distance + 100 * std_internode_point_distance;
+    point_distance_threshold_factor = options.SEG_PARA.branch.post_process_cluster.point_distance_threshold_factor;
+    point_distance_threshold = mean_internode_point_distance + point_distance_threshold_factor * std_internode_point_distance;
 
     for i = 1:length(unique_cluster_label)
 
@@ -586,13 +599,13 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
 
     figure('Name', 'Post-Process Clusters');
     ax1 = subplot(1, 3, 1);
-    pcshow(original_pt_normalized, 'markersize', 40); hold on
+    plot3(original_pt_normalized.Location(:,1), original_pt_normalized.Location(:,2), original_pt_normalized.Location(:,3), '.', 'MarkerSize', 10); hold on
     plot_dbscan_clusters(crotch_pts, cluster_label);
     xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
     title(['Initial clusters: ', num2str(length(unique_cluster_label))], 'color', [1, 0, 0]);
 
     ax2 = subplot(1, 2, 2);
-    pcshow(original_pt_normalized, 'markersize', 40); hold on
+    plot3(original_pt_normalized.Location(:,1), original_pt_normalized.Location(:,2), original_pt_normalized.Location(:,3), '.', 'MarkerSize', 10); hold on
     plot_dbscan_clusters(updated_cluster_pts_list, updated_cluster_label);
 
     if ~isempty(noise_cluster_pts_list)
@@ -604,6 +617,11 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
 
     Link = linkprop([ax1, ax2], {'CameraUpVector', 'CameraPosition', 'CameraTarget', 'XLim', 'YLim', 'ZLim'});
     setappdata(gcf, 'StoreTheLink', Link);
+
+    if isempty(updated_cluster_pts_list)
+        disp('===================Characterization Failure===================');
+        error('Empty cluster after post-processing');
+    end
 
     %%---------------------------------------------------------%%
     %%-------------------Branch Segmentation-------------------%%
@@ -641,10 +659,6 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
     visited_id = cell(size(P.spls, 1), 1);
     MST_cell = {};
     rest_weighted_graph_cell = {};
-
-    if isempty(updated_cluster_pts_list)
-        error('===================Characterization Failure===================')
-    end
 
     [~, updated_cluster_pts_index_in_rest_pts] = ismember(updated_cluster_pts_list, rest_pts, 'row');
 
@@ -692,7 +706,7 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
 
         % points are not connected in MST
         if MST_max_length <= 3
-            disp(['===================SKIP BRNACH ' num2str(i) 'Due to MST <= 3 ', num2str(MST_max_length), ' ==================='])
+            disp(['===================SKIP BRNACH ' num2str(i) ' Due to MST <= 3 ', num2str(MST_max_length), ' ==================='])
             continue
         end
 
@@ -729,11 +743,11 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
     P.branch_root_pts = valid_cluster_pts_list;
     P.branch_root_label = valid_cluster_pts_label;
     P.branch_counter = branch_counter;
-    save(skel_filepath, 'P');
+    save(seg_mat_filepath, 'P');
 
     figure('Name', 'Branch count visualization')
     ax1 = subplot(1, 2, 1);
-    pcshow(original_pt_normalized, 'MarkerSize', 30); hold on
+    plot3(original_pt_normalized.Location(:,1), original_pt_normalized.Location(:,2), original_pt_normalized.Location(:,3), '.', 'MarkerSize', 10); hold on
     plot_by_weight(P.spls, visited);
     xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
 
@@ -755,7 +769,7 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
     overcount_adj_matrix = adj_matrix(overcount_branch_pts_index2, overcount_branch_pts_index2);
 
     ax2 = subplot(1, 2, 2);
-    pcshow(original_pt_normalized, 'MarkerSize', 30); hold on
+    plot3(original_pt_normalized.Location(:,1), original_pt_normalized.Location(:,2), original_pt_normalized.Location(:,3), '.', 'MarkerSize', 10); hold on
     scatter3(overcount_branch_pts(:, 1), overcount_branch_pts(:, 2), overcount_branch_pts(:, 3), sizep, '.');
     plot_connectivity(overcount_branch_pts, overcount_adj_matrix, sizee, colore);
     xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
@@ -771,7 +785,7 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
     end
 
     figure('Name', 'Entire branch identification')
-    pcshow(original_pt_normalized, 'MarkerSize', 30); hold on
+    plot3(original_pt_normalized.Location(:,1), original_pt_normalized.Location(:,2), original_pt_normalized.Location(:,3), '.', 'MarkerSize', 10); hold on
 
     colors = {'red', 'blue', 'yellow', 'green', 'cyan', 'magenta'};
 
@@ -881,7 +895,7 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
     end
 
     figure('Name', 'Refined entire branch identification')
-    pcshow(original_pt_normalized, 'MarkerSize', 30); hold on
+    plot3(original_pt_normalized.Location(:,1), original_pt_normalized.Location(:,2), original_pt_normalized.Location(:,3), '.', 'MarkerSize', 10); hold on
 
     colors = {'red', 'blue', 'yellow', 'green', 'cyan', 'magenta', 'white'};
 
@@ -903,7 +917,7 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
     P.entire_branch_pts = entire_branch_pts;
     P.entire_branch_label = entire_branch_label;
     P.entire_branch_counter = branch_counter;
-    save(skel_filepath, 'P');
+    save(seg_mat_filepath, 'P');
 
     %%-------------------------------------------------------------------%%
     %%-------------------Primary Branch Identification-------------------%%
@@ -972,9 +986,9 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
 
     figure('Name', 'Primary branch identification')
     ax1 = subplot(1, 2, 1);
-    pcshow(pt, 'MarkerSize', 30); hold on
+    plot3(pt.Location(:,1), pt.Location(:,2), pt.Location(:,3), '.', 'MarkerSize', 10); hold on
 
-    if SEGMENTATION
+    if BRANCH_SEGMENTATION
         branch_pc_indices = [];
     end
 
@@ -989,11 +1003,7 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
         text(tmp_pts(1), tmp_pts(2), tmp_pts(3) + 0.02, num2str(i), 'Color', 'red', 'HorizontalAlignment', 'left', 'FontSize', 12);
 
         % segment indivudal branches from raw point cloud
-        if SEGMENTATION
-            if ~exist(segmented_folder, 'dir')
-                mkdir(segmented_folder);
-            end
-
+        if BRANCH_SEGMENTATION
             voxel_size = options.SEG_PARA.branch.segmentation.voxel_size;
             % iterate over each point in primary_branch_pts
             branch_pc_list = [];
@@ -1018,12 +1028,13 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
                 branch_pc_list = [branch_pc_list, pc_within_voxel];
             end
             branch_pc = pccat(branch_pc_list);
+            branch_pc = unique_pcd(branch_pc);
             % save branch_pc to a file
             pcwrite(branch_pc, fullfile(segmented_folder, ['branch' num2str(i) '.pcd']));
         end
     end
 
-    if SEGMENTATION
+    if BRANCH_SEGMENTATION
         copy_original_pt_location = original_pt_normalized.Location;
         copy_original_pt_color = original_pt_normalized.Color;
         copy_original_pt_location(branch_pc_indices, :) = [];
@@ -1035,7 +1046,7 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
     xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); grid on; axis equal;
 
     ax2 = subplot(1, 2, 2);
-    pcshow(pt, 'MarkerSize', 30); hold on
+    plot3(pt.Location(:,1), pt.Location(:,2), pt.Location(:,3), '.', 'MarkerSize', 10); hold on
 
     %% visualization of field measurement
     for i = 1:length(files)
@@ -1060,8 +1071,8 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
 
             if strcmp(color, 'Orange')
                 color = 'Yellow';
-            elseif strcmp(color, 'Black')
-                color = 'White';
+            % elseif strcmp(color, 'Black')
+            %     color = 'White';
             end
 
             plot3(tmp_pc_location(:, 1), tmp_pc_location(:, 2), tmp_pc_location(:, 3), '.', 'Color', color, 'markersize', 20)
@@ -1084,6 +1095,8 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
         %%-----------------------------------------------------%%
         %%-------------------Branch CPC-------------------%%
         %%-----------------------------------------------------%%
+        disp('===================Branch Skeleton Refinement===================');
+
         % the ratio of sphere_radius/maximum_length is critical!
         % branch_refinement_options.sphere_radius = 0.02;
         % branch_refinement_options.maximum_length = 0.004;
@@ -1214,7 +1227,7 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
             invalid_radii = P.primary_branch_radius(invalid_primary_branch_index);
         end
 
-        save(skel_filepath, 'P');
+        save(seg_mat_filepath, 'P');
         disp(['sphere radius: ' num2str(branch_refinement_options.sphere_radius)]);
         disp(['maximum length: ' num2str(branch_refinement_options.maximum_length)]);
         disp(['M: ' num2str(M)]);
@@ -1222,7 +1235,7 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
 
         figure('Name', 'Optimized branch skeleton pts')
         ax1 = subplot(1, 2, 1);
-        pcshow(P.branch_pc, 'Markersize', 30); hold on
+        plot3(P.branch_pc.Location(:,1), P.branch_pc.Location(:,2), P.branch_pc.Location(:,3), '.', 'MarkerSize', 10); hold on
         plot3(P.primary_branch_center(:, 1), P.primary_branch_center(:, 2), P.primary_branch_center(:, 3), '.r', 'Markersize', 30)
         if ~isempty(side_branch_pc_list)
             plot3(P.side_branch_center(:, 1), P.side_branch_center(:, 2), P.side_branch_center(:, 3), '.b', 'Markersize', 30)
@@ -1231,7 +1244,7 @@ function [primary_branch_counter] = segmentation(skel_folder, output_folder, tre
         xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); axis equal; grid on;
 
         ax2 = subplot(1, 2, 2);
-        pcshow(P.branch_pc, 'Markersize', 30); hold on
+        plot3(P.branch_pc.Location(:,1), P.branch_pc.Location(:,2), P.branch_pc.Location(:,3), '.', 'MarkerSize', 10); hold on
         plot_by_weight(valid_centers, valid_radii / trunk_radius);
         xlabel('x-axis'); ylabel('y-axis'); zlabel('z-axis'); axis equal; grid on;
 

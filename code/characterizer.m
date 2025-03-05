@@ -4,9 +4,11 @@ path('utility', path);
 path('plot', path);
 path('refinement', path);
 path('config', path);
+path('skeleton', path);
+path('subsample', path);
 
 %% Configuration
-config_filepath = "config\iros_2024.yaml";
+config_filepath = "config/reconstruction.yaml";
 config = yaml.loadFile(config_filepath);
 
 % load experimental parameters
@@ -16,7 +18,7 @@ mat_extension = config.experiment.mat_extension{1};
 data_folder = config.experiment.data_folder{1};
 models = config.experiment.models;
 mode  = config.experiment.mode{1};
-if yaml.isNull(config.experiment.exp_name)
+if isempty(config.experiment.exp_name)
     exp_name='.';
 else
     exp_name = config.experiment.exp_name{1};
@@ -54,7 +56,7 @@ if options.SKEL_ON
         pcd_files = natsortfiles(pcd_files);
         
         % loop pcd_files
-        for i = 1
+        for i = 1:numel(pcd_files)
             filename = pcd_files(i).name;
             disp(['=========Tree ' num2str(filename) ' ========='])
             laplacian_skeleton(tree_folder, skel_folder, exp_name, filename, options);
@@ -74,7 +76,8 @@ end
 %%====================================%%
 options.SEG_PARA = config.segmentation;
 options.DEBUG = config.segmentation.options.DEBUG;
-options.SEGMENTATION = config.segmentation.options.SEGMENTATION;
+options.TRUNK_SEGMENTATION = config.segmentation.options.TRUNK_SEGMENTATION;
+options.BRANCH_SEGMENTATION = config.segmentation.options.BRANCH_SEGMENTATION;
 options.TRUNK_REFINEMENT = config.segmentation.options.TRUNK_REFINEMENT;
 options.BRANCH_REFINEMENT = config.segmentation.options.BRANCH_REFINEMENT;        
 options.SAVE_PARAS = config.segmentation.options.SAVE_PARAS;
@@ -89,52 +92,62 @@ options.SHOW_BRANCH = config.characterization.options.SHOW_BRANCH;
 options.SAVE =config.characterization.options.SAVE;
 options.OUTPUT = config.characterization.options.OUTPUT;
 
-% create cell array for table data
-data = cell(numel(models), config.experiment.num_tree+1);
-
+% Loop through each model
 for i = 1:length(models)
     model = models{i}{1};
     tree_folder = fullfile(data_folder, model, mode);
     skel_folder = fullfile(data_folder, model, mode, exp_folder, skeleton_folder, exp_name);
 
-    % load skeleton files
+    % Load skeleton files
     mat_files = dir(fullfile(skel_folder, exp_name, ['tree*' mat_extension]));
     mat_files = natsortfiles(mat_files);
 
-    data{i, 1} = model;
+    % Initialize the result table for the current model
+    result_table = cell(length(mat_files), 4); % Columns: TreeID, TrunkHeight/cm, TrunkDiameter/cm, NumPrimaryBranch
+    result_table_cols = {'TreeID', 'TrunkHeight/cm', 'TrunkDiameter/cm', 'NumPrimaryBranch'};
+
     if options.SEG_ON
         segmentation_folder = fullfile(data_folder, model, mode, exp_folder, segmentation_folder, exp_name);
-        % copy config to segmentation folder
+        % Copy config to segmentation folder
         if ~exist(segmentation_folder, "dir")
             mkdir(segmentation_folder);
         end
         copyfile(config_filepath, segmentation_folder);
+
+        % Loop through each tree
         for k = 1:length(mat_files)
             file = mat_files(k).name;
             [filepath, name, ext] = fileparts(file);
-            split_file = split(name, '_');
-            tree_id = split_file{1};
-            disp(['=========Tree ' num2str(tree_id) ' ========='])
-            num_primary_branch = segmentation(skel_folder, segmentation_folder, tree_id, options);
-            data{i, 1+k} = num_primary_branch;
-        end
-    
-        %% Save the table to a CSV file
-        % create table
-        T = cell2table(data, 'VariableNames', {'model_name', 'tree1', 'tree2', 'tree3', 'tree4', 'tree5', 'tree6', 'tree7', 'tree8', 'tree9'});    
+            index = strfind(name, 'contract');
+            tree_id = name(1:index-2); % Extract tree name
+            disp(['=========Tree ' num2str(tree_id) ' =========']);
 
-        csv_filepath_output = fullfile(result_folder, 'Branch_Quantity.csv');  % define filename
-        % check if the file exists
+            % Call the segmentation function to get trunk_height, trunk_radius, and num_primary_branch
+            [trunk_height, trunk_radius, num_primary_branch] = segmentation(skel_folder, segmentation_folder, tree_id, options);
+
+            % Store the results in the table
+            result_table{k, 1} = tree_id; % TreeID
+            result_table{k, 2} = trunk_height * 100; % TrunkHeight/cm
+            result_table{k, 3} = trunk_radius * 2 * 100; % TrunkDiameter/cm (diameter = 2 * radius)
+            result_table{k, 4} = num_primary_branch; % NumPrimaryBranch
+        end
+
+        % Convert the cell array to a table
+        T = cell2table(result_table, 'VariableNames', result_table_cols);
+
+        % Define the output CSV file path
+        csv_filepath_output = fullfile(result_folder, sprintf('Tree_Traits_%s.csv', model));
+
+        % Check if the file exists and save/append accordingly
         if exist(csv_filepath_output, 'file')
-            % if the file exists, append the data
+            % If the file exists, append the data
             writetable(T, csv_filepath_output, 'WriteMode', 'append');
-            disp(['Branch quantity appended to: ' csv_filepath_output]);
+            disp(['Tree traits appended to: ' csv_filepath_output]);
         else
-            % if the file does not exist, write the data to a new file
-            writetable(T, csv_filepath_output);  % wsrite table to CSV file
-            disp(['Branch quantity saved to: ' csv_filepath_output]);
+            % If the file does not exist, write the data to a new file
+            writetable(T, csv_filepath_output);
+            disp(['Tree traits saved to: ' csv_filepath_output]);
         end
-
     end
     
     if options.CHAR_ON
