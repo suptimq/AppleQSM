@@ -9,7 +9,7 @@ path('utility', path);
 % Define directories
 faroDir = '/Users/tim/Downloads/SparseView_Reconstruction/faro/crop';
 
-resutlDir = '/Users/tim/Downloads/SparseView_Reconstruction/result/03052025';
+resutlDir = '/Users/tim/Downloads/SparseView_Reconstruction/result';
 pointDir = fullfile(resutlDir, "points");
 videoDir = fullfile(resutlDir, "Videos_3SVRO");
 scaledPointDir = fullfile(resutlDir, "scaled_points");
@@ -48,7 +48,7 @@ SAVE_SCALED = false;
 FIG = false;
 SCREENSHOT = false;
 VIDEO = false;
-cd_mode = 'deterministic';
+cd_mode = 'deterministic ';  % deterministic
 
 csvFilePath = fullfile(videoDir, 'Chamfer_Distance_Table_pdist2.csv');
 metaFilePath = fullfile(videoDir, 'Normalization_Metadata.csv');
@@ -99,11 +99,18 @@ for fileIdx = 1:length(plyFiles)
         ptCloud = pcread(plyFilePath);
         ptCentroid = mean(ptCloud.Location, 1);
         ptNormalizedLocations = (ptCloud.Location - ptCentroid) / max(vecnorm(ptCloud.Location - ptCentroid, 2, 2));
-        
+
+        % Register point cloud in the normalized space using ICP
+        pc1 = pointCloud(ptNormalizedLocations);
+        pc2 = pointCloud(faroNormalizedLocations);
+        [~, movingReg, rmse] = pcregistericp(pc1, pc2);
+        [~, movingReg2, rmse2] = pcregistericp(pc2, pc1);
+
+        % Scale and translate the aligned point cloud to FARO coordinate
+        ptCloudLocation = (movingReg.Location * maxDistance) + faroCentroid;
+        ptScaledCloud = pointCloud(ptCloudLocation);
         if SAVE_SCALED
             % Scale using FARO normalization meta
-            ptCloudLocation = (ptNormalizedLocations * maxDistance) + faroCentroid;
-            ptScaledCloud = pointCloud(ptCloudLocation);
             ptFolder = fullfile(scaledPointDir, subFolders(i).name);
             if ~exist(ptFolder, "dir")
                 mkdir(ptFolder)
@@ -112,16 +119,23 @@ for fileIdx = 1:length(plyFiles)
             pcwrite(ptScaledCloud, ptFilePath);
         end
 
-        % Compute Chamfer Distance
+        % Compute Chamfer Distance using aligned and normalized point cloud
         if ~isempty(faroNormalizedLocations)
-            cd = chamfer_distance(ptNormalizedLocations, faroNormalizedLocations, cd_mode);
+            % Use the better alignment for compute
+            if rmse > rmse2
+                % Transformed FARO
+                cd = chamfer_distance(ptNormalizedLocations, movingReg2.Location, cd_mode);
+            else
+                % Transformed reconstruction
+                cd = chamfer_distance(movingReg.Location, faroNormalizedLocations, cd_mode);
+            end
         else
             cd = NaN;
         end
         cdTable{fileIdx + 1, i + 1} = cd; % Store in table
         
         % Visualize
-        translatedLocations = ptNormalizedLocations;
+        translatedLocations = movingReg.Location;
         translatedLocations(:, 2) = translatedLocations(:, 2) + i * spacing;
         color = colors(i+1, :);
         coloredPtCloud = pointCloud(translatedLocations, 'Color', repmat(color, ptCloud.Count, 1));
