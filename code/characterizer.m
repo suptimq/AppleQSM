@@ -99,7 +99,7 @@ for i = 1:length(models)
     skel_folder = fullfile(data_folder, model, mode, exp_folder, skeleton_folder, exp_name);
 
     % Load skeleton files
-    mat_files = dir(fullfile(skel_folder, exp_name, ['tree*' mat_extension]));
+    mat_files = dir(fullfile(skel_folder, exp_name, ['*' mat_extension]));
     mat_files = natsortfiles(mat_files);
 
     % Initialize the result table for the current model
@@ -167,11 +167,11 @@ for i = 1:length(models)
             matched_qsm_table = table;
         end
 
-        for k = 1:length(mat_files)
+        for k = 1:numel(mat_files)
             file = mat_files(k).name;
             [filepath, name, ext] = fileparts(file);
-            split_file = split(name, '_');
-            tree_id = split_file{1};
+            index = strfind(name, 'contract');
+            tree_id = name(1:index-2); % Extract tree name
             disp(['=========Tree ' num2str(tree_id) ' ========='])
             [nt, branch_fig_gcf] = branch_trait(segmentation_folder, characterization_folder, tree_id, matched_qsm_table, options);
             if k == 1
