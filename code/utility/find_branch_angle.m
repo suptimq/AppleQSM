@@ -5,6 +5,12 @@ function [segment_vectors, vertical_angle, N] = find_branch_angle(trunk_internod
     index = uniform_xyz_distance >= trunk_radius;
     primary_spline_pts_outside = primary_spline_pts(index, :);
 
+    if isempty(primary_spline_pts_outside)
+        segment_vectors = [];
+        vertical_angle = [];
+        return; 
+    end
+
     % fit branch segment vector
     min_samples = 3; residual_threshold = 0.015; max_trials = 1e3;
     segment_pts = sliding_window(primary_spline_pts_outside, 1, 4, 1);

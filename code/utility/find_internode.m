@@ -16,7 +16,7 @@ function [sorted_sliced_main_trunk_pts, row, col] = find_internode(branch_pts, r
 
     % make sure trunk internode's Z value <= first two primary branch
     % skeleton points
-    if zlimit
+    if zlimit && ~isempty(row)
         branch_branch_distance_matrix = pdist2(branch_pts, branch_pts);
         [~, index] = mink(branch_branch_distance_matrix(col, :), 2);
         zmin = min(branch_pts(index, 3));

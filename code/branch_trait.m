@@ -85,6 +85,10 @@ function [T, branch_fig_gcf] = branch_trait(seg_folder, output_folder, tree_id, 
 
         % find the internode
         [sliced_main_trunk_pts, row, col] = find_internode(double(primary_branch_pts), double(trunk_skeleton_pts), 0.2);
+        if isempty(row) || isempty(col)
+            disp(['===================SKIP BRNACH ' num2str(i) 'Due to Empty row/col in internode finding ==================='])
+            continue
+        end
         trunk_internode = sliced_main_trunk_pts(row, :);
         branch_internode = primary_branch_pts(col, :);
         branch_internode_height = branch_internode(3) - trunk_skeleton_pts_root_z;
@@ -130,6 +134,11 @@ function [T, branch_fig_gcf] = branch_trait(seg_folder, output_folder, tree_id, 
         % angle
         N = options.CHAR_PARA.angle_K;
         [segment_vectors, vertical_angle, N] = find_branch_angle(trunk_internode, trunk_radius, v1, primary_spline_pts, N);
+
+        if isempty(segment_vectors)
+            disp(['===================SKIP BRNACH ' num2str(i) 'Due to Empty segment_vectors ==================='])
+            continue
+        end
 
         % radius
         s = options.CHAR_PARA.diameter_start_idx;
@@ -295,7 +304,7 @@ function [T, branch_fig_gcf] = branch_trait(seg_folder, output_folder, tree_id, 
     end
 
     %% save branch trait
-    if SAVE
+    if SAVE && ~isempty(T)
         T.Properties.VariableNames = {'Filename', 'Branch ID', 'Vertical_Croth_Angle-Degree', 'Primary_Branch_Diameter-mm', 'Branch_Height-cm', 'Branch_Length-cm'};
         branch_excel_filepath = fullfile(output_folder, [tree_id '_branch_trait.xlsx']);
         writetable(T, branch_excel_filepath, 'Sheet', 'Branch_Level_Traits_1')

@@ -167,6 +167,7 @@ for i = 1:length(models)
             matched_qsm_table = table;
         end
 
+        T = table();
         for k = 1:numel(mat_files)
             file = mat_files(k).name;
             [filepath, name, ext] = fileparts(file);
@@ -174,11 +175,15 @@ for i = 1:length(models)
             tree_id = name(1:index-2); % Extract tree name
             disp(['=========Tree ' num2str(tree_id) ' ========='])
             [nt, branch_fig_gcf] = branch_trait(segmentation_folder, characterization_folder, tree_id, matched_qsm_table, options);
-            if k == 1
-                T = nt;
-            else
-                T = vertcat(T, nt);
+            
+            if ~isempty(nt)
+                if isempty(T)
+                    T = nt;
+                else
+                    T = vertcat(T, nt);
+                end
             end
+            
         end
 
         if options.SHOW
