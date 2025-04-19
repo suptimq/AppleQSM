@@ -5,7 +5,7 @@ function [segment_vectors, vertical_angle, N] = find_branch_angle(trunk_internod
     index = uniform_xyz_distance >= trunk_radius;
     primary_spline_pts_outside = primary_spline_pts(index, :);
 
-    if isempty(primary_spline_pts_outside)
+    if size(primary_spline_pts_outside, 1) < 3
         segment_vectors = [];
         vertical_angle = [];
         return; 
