@@ -25,9 +25,9 @@ else
 end
 exp_folder = config.experiment.exp_folder{1};
 % load folder name
-skeleton_folder = config.experiment.skeleton_folder{1};
-segmentation_folder = config.experiment.segmentation_folder{1};
-characterization_folder = config.experiment.characterization_folder{1};
+skel_folder_name = config.experiment.skeleton_folder{1};
+seg_folder_name = config.experiment.segmentation_folder{1};
+char_folder_name = config.experiment.characterization_folder{1};
 
 % switch for each component
 options.SKEL_ON = config.experiment.SKEL_ON;
@@ -44,7 +44,7 @@ if options.SKEL_ON
     for k = 1:length(models)
         model = models{k}{1};
         tree_folder = fullfile(data_folder, model, mode);
-        skel_folder = fullfile(data_folder, model, mode, exp_folder, skeleton_folder, exp_name);
+        skel_folder = fullfile(data_folder, model, mode, exp_folder, skel_folder_name, exp_name);
     
         % copy config to skeleton folder
         if ~exist(skel_folder, "dir")
@@ -96,7 +96,7 @@ options.OUTPUT = config.characterization.options.OUTPUT;
 for i = 1:length(models)
     model = models{i}{1};
     tree_folder = fullfile(data_folder, model, mode);
-    skel_folder = fullfile(data_folder, model, mode, exp_folder, skeleton_folder, exp_name);
+    skel_folder = fullfile(data_folder, model, mode, exp_folder, skel_folder_name, exp_name);
 
     % Load skeleton files
     mat_files = dir(fullfile(skel_folder, exp_name, ['*' mat_extension]));
@@ -107,7 +107,7 @@ for i = 1:length(models)
     result_table_cols = {'TreeID', 'TrunkHeight/cm', 'TrunkDiameter/cm', 'NumPrimaryBranch'};
 
     if options.SEG_ON
-        segmentation_folder = fullfile(data_folder, model, mode, exp_folder, segmentation_folder, exp_name);
+        segmentation_folder = fullfile(data_folder, model, mode, exp_folder, seg_folder_name, exp_name);
         % Copy config to segmentation folder
         if ~exist(segmentation_folder, "dir")
             mkdir(segmentation_folder);
@@ -151,8 +151,8 @@ for i = 1:length(models)
     end
     
     if options.CHAR_ON
-        segmentation_folder = fullfile(data_folder, model, mode, exp_folder, segmentation_folder, exp_name);
-        characterization_folder = fullfile(data_folder, model, mode, exp_folder, characterization_folder, exp_name);
+        segmentation_folder = fullfile(data_folder, model, mode, exp_folder, seg_folder_name, exp_name);
+        characterization_folder = fullfile(data_folder, model, mode, exp_folder, char_folder_name, exp_name);
         % copy config to characterization folder
         if ~exist(characterization_folder, "dir")
             mkdir(characterization_folder);
