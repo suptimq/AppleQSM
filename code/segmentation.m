@@ -258,7 +258,7 @@ function [main_trunk_height, trunk_radius, primary_branch_counter] = segmentatio
     max_trials = options.SEG_PARA.trunk.ransac_trunk_diameter_trials;
 
     while size(trunk_root_pts, 1) <= min_samples
-        min_samples = min_samples / 2;
+        min_samples = ceil(min_samples / 2);
 
         if min_samples < 5
             disp('===================Characterization Failure===================');
