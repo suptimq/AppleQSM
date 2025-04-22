@@ -7,12 +7,19 @@ close all;
 path('utility', path);
 
 % Define directories
-faroDir = '/Users/tim/Downloads/SparseView_Reconstruction/faro/crop';
+referenceDir = '/Users/tim/Downloads/SparseView_Reconstruction/faro/crop';
+resutlDir = '/Users/tim/Downloads/SparseView_Reconstruction/result/interpolation-5000';
 
-resutlDir = '/Users/tim/Downloads/SparseView_Reconstruction/result';
+% referenceDir = '/Users/tim/Downloads/SparseView_Reconstruction/validation/interpolation_5000/lpy_tree';
+% resutlDir = '/Users/tim/Downloads/SparseView_Reconstruction/validation/interpolation_5000';
+
+% referenceDir = '/Users/tim/Downloads/SparseView_Reconstruction/how_many_views/raw';
+% resutlDir = '/Users/tim/Downloads/SparseView_Reconstruction/how_many_views';
+
 pointDir = fullfile(resutlDir, "points");
-videoDir = fullfile(resutlDir, "Videos_3SVRO");
+videoDir = fullfile(resutlDir, "matlab");
 scaledPointDir = fullfile(resutlDir, "scaled_points");
+normalizedPointDir = fullfile(resutlDir, "normalized_points");
 
 if ~exist(videoDir, 'dir')
     mkdir(videoDir);
@@ -22,10 +29,17 @@ if ~exist(scaledPointDir, 'dir')
     mkdir(scaledPointDir);
 end
 
+if ~exist(normalizedPointDir, 'dir')
+    mkdir(normalizedPointDir);
+end
+
 % Get all subfolders
 subFolders = dir(pointDir);
 subFolders = subFolders([subFolders.isdir]); 
 subFolders = subFolders(~ismember({subFolders.name}, {'.', '..', 'AppleQSM'}));
+
+% targetFolders = {'main_rgbd_point_sum_lora', 'main_rgbd_point_sum_lora_Scale-0.8'};
+% subFolders = subFolders(ismember({subFolders.name}, targetFolders));
 
 % Get .ply files
 firstSubFolder = fullfile(pointDir, subFolders(1).name);
@@ -44,11 +58,11 @@ metaTable = cell(length(plyFiles) + 1, 3);
 metaTable(1, :) = {'Tree Name', 'FARO Centroid', 'Max Distance from Centroid'};
 
 % Define options
-SAVE_SCALED = false;
+SAVE_SCALED = true;
 FIG = false;
 SCREENSHOT = false;
 VIDEO = false;
-cd_mode = 'deterministic ';  % deterministic
+cd_mode = 'quick';  % deterministic
 
 csvFilePath = fullfile(videoDir, 'Chamfer_Distance_Table_pdist2.csv');
 metaFilePath = fullfile(videoDir, 'Normalization_Metadata.csv');
@@ -68,23 +82,32 @@ for fileIdx = 1:length(plyFiles)
     title(sprintf('Visualizing %s', plyFileName), 'Color', 'w');
 
     % Load FARO point cloud
-    faroFilePath = fullfile(faroDir, plyFileName);
+    faroFilePath = fullfile(referenceDir, plyFileName);
     if exist(faroFilePath, 'file')
         faroPtCloud = pcread(faroFilePath);
         targetNumPoints = 40960;
         if faroPtCloud.Count > targetNumPoints
             faroPtCloud = pcdownsample(faroPtCloud, 'random', targetNumPoints / faroPtCloud.Count);
         end
-        faroCentroid = mean(faroPtCloud.Location, 1);
-        maxDistance = max(vecnorm(faroPtCloud.Location - faroCentroid, 2, 2));
+        faroPtLocation = faroPtCloud.Location;
+        faroCentroid = mean(faroPtLocation, 1);
+        faroMaxDist = max(vecnorm(faroPtLocation - faroCentroid, 2, 2));
 
         % Store data in the table
         metaTable{fileIdx + 1, 2} = faroCentroid;  % Store as a 1x3 vector
-        metaTable{fileIdx + 1, 3} = maxDistance;   % Store max distance
+        metaTable{fileIdx + 1, 3} = faroMaxDist;   % Store max distance
 
-        faroNormalizedLocations = (faroPtCloud.Location - faroCentroid) / maxDistance;
+        faroNormalizedLocations = (faroPtLocation - faroCentroid) / faroMaxDist;
         faroColor = colors(1, :);
         faroColoredPtCloud = pointCloud(faroNormalizedLocations, 'Color', repmat(faroColor, size(faroNormalizedLocations, 1), 1));
+
+        % Save normalizd FARO points
+        ptFolder = fullfile(normalizedPointDir, 'faro');
+        if ~exist(ptFolder, "dir")
+            mkdir(ptFolder)
+        end
+        % ptFilePath = fullfile(ptFolder, plyFileName);
+        % pcwrite(faroColoredPtCloud, ptFilePath);
 
         pcshow(faroColoredPtCloud, 'MarkerSize', 10);
         legendInfo{1} = 'FARO';
@@ -97,20 +120,52 @@ for fileIdx = 1:length(plyFiles)
     for i = 1:length(subFolders)
         plyFilePath = fullfile(pointDir, subFolders(i).name, plyFileName);
         ptCloud = pcread(plyFilePath);
-        ptCentroid = mean(ptCloud.Location, 1);
-        ptNormalizedLocations = (ptCloud.Location - ptCentroid) / max(vecnorm(ptCloud.Location - ptCentroid, 2, 2));
+        ptCloudLocation = ptCloud.Location;
+        
+        % Negate Z-axis if necessary
+        % ptCloudLocation(:, 3) = -ptCloudLocation(:, 3);
+        
+        % Compute scale factor and rescale to match FARO global scale
+        ptCentroid = mean(ptCloudLocation, 1);
+        ptMaxDist = max(vecnorm(ptCloudLocation - ptCentroid, 2, 2));
+        scaleFactor = faroMaxDist / ptMaxDist;  % Critical: Fixes scale drift
+        ptCloudLocation = ptCloudLocation * scaleFactor;
 
-        % Register point cloud in the normalized space using ICP
-        pc1 = pointCloud(ptNormalizedLocations);
-        pc2 = pointCloud(faroNormalizedLocations);
-        [~, movingReg, rmse] = pcregistericp(pc1, pc2);
-        [~, movingReg2, rmse2] = pcregistericp(pc2, pc1);
-
-        % Scale and translate the aligned point cloud to FARO coordinate
-        ptCloudLocation = (movingReg.Location * maxDistance) + faroCentroid;
-        ptScaledCloud = pointCloud(ptCloudLocation);
+        % Recompute stats after rescaling
+        ptCentroid = mean(ptCloudLocation, 1);  
+        ptMaxDist = max(vecnorm(ptCloudLocation - ptCentroid, 2, 2));  
+        ptNormalizedLocations = (ptCloudLocation - ptCentroid) / ptMaxDist;  
+        
+        % Create point cloud objects for registration
+        pcCurrent = pointCloud(ptNormalizedLocations);
+        pcFaroRef = pointCloud(faroNormalizedLocations);
+        
+        % Perform bidirectional ICP registration to find best alignment
+        [tform1, movingReg1, rmse1] = pcregistericp(pcCurrent, pcFaroRef, 'MaxIterations', 100);
+        [tform2, movingReg2, rmse2] = pcregistericp(pcFaroRef, pcCurrent, 'MaxIterations', 100);
+        
+        % Select best alignment (lower RMSE)
+        if rmse1 <= rmse2
+            % Use first registration result
+            alignedLocation = movingReg1.Location;
+            usedForwardTransform = true;
+        else
+            % Manual inversion of affine3d transform
+            T = tform2.T;  % Get 4x4 transformation matrix
+            Tinv = eye(4);
+            Tinv(1:3,1:3) = inv(T(1:3,1:3));  % Invert rotation
+            Tinv(1:3,4) = -Tinv(1:3,1:3)*T(1:3,4);  % Invert translation
+            invTform = affine3d(Tinv);
+            alignedLocation = pctransform(pcCurrent, invTform).Location;
+            usedForwardTransform = false;
+        end
+        
+        % Denormalize using FARO reference parameters
+        ptCloudAligned = alignedLocation * faroMaxDist + faroCentroid;
+        ptScaledCloud = pointCloud(ptCloudAligned);
+        
+        % Save results if enabled
         if SAVE_SCALED
-            % Scale using FARO normalization meta
             ptFolder = fullfile(scaledPointDir, subFolders(i).name);
             if ~exist(ptFolder, "dir")
                 mkdir(ptFolder)
@@ -119,23 +174,27 @@ for fileIdx = 1:length(plyFiles)
             pcwrite(ptScaledCloud, ptFilePath);
         end
 
-        % Compute Chamfer Distance using aligned and normalized point cloud
+        % Compute Chamfer Distance
         if ~isempty(faroNormalizedLocations)
-            % Use the better alignment for compute
-            if rmse > rmse2
-                % Transformed FARO
-                cd = chamfer_distance(ptNormalizedLocations, movingReg2.Location, cd_mode);
-            else
-                % Transformed reconstruction
-                cd = chamfer_distance(movingReg.Location, faroNormalizedLocations, cd_mode);
+            % Save normalized point pairs
+            ptFolder = fullfile(normalizedPointDir, subFolders(i).name);
+            if ~exist(ptFolder, "dir")
+                mkdir(ptFolder)
             end
+            
+            % alignedLocation is the transformed point cloud in FARO
+            % coordinate system
+            pcwrite(pointCloud(alignedLocation), fullfile(ptFolder, plyFileName));
+            pcwrite(pcFaroRef, fullfile(ptFolder, ['faro_' plyFileName]));
+            cd = chamfer_distance(alignedLocation, faroNormalizedLocations, cd_mode);
+
         else
             cd = NaN;
         end
         cdTable{fileIdx + 1, i + 1} = cd; % Store in table
         
         % Visualize
-        translatedLocations = movingReg.Location;
+        translatedLocations = alignedLocation;
         translatedLocations(:, 2) = translatedLocations(:, 2) + i * spacing;
         color = colors(i+1, :);
         coloredPtCloud = pointCloud(translatedLocations, 'Color', repmat(color, ptCloud.Count, 1));
@@ -190,8 +249,13 @@ end
 
 % Save CD Table as CSV
 if ~exist(csvFilePath, 'file')
+    % Write new file with headers
     writecell(cdTable, csvFilePath);
     disp(['Chamfer Distance table saved at: ' csvFilePath]);
+else
+    % Append only data (excluding header row)
+    writecell(cdTable, csvFilePath, 'WriteMode', 'append');
+    disp(['Chamfer Distance table appended to: ' csvFilePath]);
 end
 
 if ~exist(metaFilePath, 'file')
