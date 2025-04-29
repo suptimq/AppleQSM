@@ -86,7 +86,7 @@ function [T, branch_fig_gcf] = branch_trait(seg_folder, output_folder, tree_id, 
         % find the internode
         [sliced_main_trunk_pts, row, col] = find_internode(double(primary_branch_pts), double(trunk_skeleton_pts), 0.2);
         if isempty(row) || isempty(col)
-            disp(['===================SKIP BRNACH ' num2str(i) 'Due to Empty row/col in internode finding ==================='])
+            disp(['===================SKIP BRNACH ' num2str(i) ' Due to Empty row/col in internode finding ==================='])
             continue
         end
         trunk_internode = sliced_main_trunk_pts(row, :);
@@ -94,6 +94,10 @@ function [T, branch_fig_gcf] = branch_trait(seg_folder, output_folder, tree_id, 
         branch_internode_height = branch_internode(3) - trunk_skeleton_pts_root_z;
 
         [~, index] = ismember(trunk_internode, trunk_skeleton_pts, 'row');
+        if index > length(trunk_internode_ratio)
+            disp(['===================SKIP BRNACH ' num2str(i) ' Due to out of index in internode finding ==================='])
+            continue
+        end
         ratio_distance = trunk_internode_ratio(index);
         trunk_radius = P.trunk_cpc_optimized_radius(index);
 
@@ -111,7 +115,7 @@ function [T, branch_fig_gcf] = branch_trait(seg_folder, output_folder, tree_id, 
         primary_branch_length = cumsum(primary_branch_pts_distance);
 
         if any(isnan(primary_spline_pts_radius)) || isempty(primary_spline_pts_radius)
-            disp(['===================SKIP BRNACH ' num2str(i) 'Due to NaN ==================='])
+            disp(['===================SKIP BRNACH ' num2str(i) ' Due to NaN ==================='])
             start = start + primary_branch_pts_size;
             spline_start = spline_start + primary_spline_pts_size;
             continue
@@ -134,8 +138,7 @@ function [T, branch_fig_gcf] = branch_trait(seg_folder, output_folder, tree_id, 
         [segment_vectors, vertical_angle, N] = find_branch_angle(trunk_internode, trunk_radius, v1, primary_spline_pts, N);
 
         if isempty(segment_vectors)
-            disp(['===================SKIP BRNACH ' num2str(i) 'Due to Empty segment_vectors ==================='])
-            continue
+            vertical_angle = NaN;            
         end
 
         % radius
