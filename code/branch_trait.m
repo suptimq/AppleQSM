@@ -306,7 +306,7 @@ function [T, branch_fig_gcf] = branch_trait(seg_folder, output_folder, tree_id, 
 
     %% save branch trait
     if SAVE && ~isempty(T)
-        T.Properties.VariableNames = {'Filename', 'Branch ID', 'Vertical_Croth_Angle-Degree', 'Primary_Branch_Diameter-mm', 'Branch_Height-cm', 'Branch_Length-cm'};
+        T.Properties.VariableNames = {'TreeID', 'BranchID', 'Vertical_Croth_Angle-Degree', 'Primary_Branch_Diameter-mm', 'Branch_Height-cm', 'Branch_Length-cm'};
         branch_excel_filepath = fullfile(output_folder, [tree_id '_branch_trait.xlsx']);
         writetable(T, branch_excel_filepath, 'Sheet', 'Branch_Level_Traits_1')
     end
