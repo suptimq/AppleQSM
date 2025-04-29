@@ -111,27 +111,19 @@ for i = 1:length(models)
         % Copy config to segmentation folder
         if ~exist(segmentation_folder, "dir")
             mkdir(segmentation_folder);
-        end
-        % copyfile(config_filepath, segmentation_folder);
-
-        % Save multiple config files with different names
-        [~, name, ext] = fileparts(config_filepath);
-        destination_file = fullfile(segmentation_folder, strcat(name, ext));
-        
-        if ~exist(destination_file, "file")
-            copyfile(config_filepath, destination_file);
         else
             version = 2;
             while true
-                new_name = sprintf('%s_v%d%s', name, version, ext);
-                destination_file = fullfile(segmentation_folder, new_name);
-                if ~exist(destination_file, "file")
-                    copyfile(config_filepath, destination_file);
+                new_seg_folder_name = sprintf('%s_v%d', seg_folder_name, version);
+                segmentation_folder = fullfile(data_folder, model, mode, exp_folder, new_seg_folder_name, exp_name);
+                if ~exist(segmentation_folder, "dir")
+                    mkdir(segmentation_folder);
                     break;
                 end
                 version = version + 1;
             end
         end
+        copyfile(config_filepath, segmentation_folder);
 
         % Loop through each tree
         for k = 1:length(mat_files)
