@@ -110,14 +110,12 @@ function [T, branch_fig_gcf] = branch_trait(seg_folder, output_folder, tree_id, 
         primary_branch_pts_distance = sqrt(sum(diff([trunk_internode; primary_spline_pts]).^2, 2));        % append trunk internode to the first
         primary_branch_length = cumsum(primary_branch_pts_distance);
 
-        if all(isnan(primary_branch_pts_radius)) || isempty(primary_spline_pts_radius)
-            disp(['===================SKIP BRNACH ' num2str(i) 'Due to All NaN ==================='])
+        if any(isnan(primary_spline_pts_radius)) || isempty(primary_spline_pts_radius)
+            disp(['===================SKIP BRNACH ' num2str(i) 'Due to NaN ==================='])
             start = start + primary_branch_pts_size;
             spline_start = spline_start + primary_spline_pts_size;
             continue
         end
-
-        assert(~any(isnan(primary_spline_pts_radius)), 'Found NaN')
 
         % fit trunk vector - only use trunk points that are close to the
         % internode

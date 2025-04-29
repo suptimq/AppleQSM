@@ -945,10 +945,19 @@ function [main_trunk_height, trunk_radius, primary_branch_counter] = segmentatio
         d_m = pdist2(double(branch_pts), double(branch_pts(col, :)));
         [~, tmp_index] = mink(d_m, size(branch_pts, 1));
 
-        while ~ismember(branch_internode_index_in_rest_pts, MST_nodes_unique)
+        while ~ismember(branch_internode_index_in_rest_pts, MST_nodes_unique) && size(tmp_index, 2) > 0
             tmp_index(1) = [];
-            col = tmp_index(1);
-            [~, branch_internode_index_in_rest_pts] = ismember(branch_pts(col, :), rest_pts, 'row');
+            if size(tmp_index, 2) == 0
+                disp(['Branch ' num2str(j) ' Not Found Any Valid Shortest Path in Primary Branch Identification']);
+                invalid_primary_branches = [invalid_primary_branches, j];
+            else
+                col = tmp_index(1);
+                [~, branch_internode_index_in_rest_pts] = ismember(branch_pts(col, :), rest_pts, 'row');
+            end
+        end
+
+        if size(tmp_index, 2) == 0
+            continue
         end
 
         shortest_path_nodes = cell(size(branch_pts, 1), 1);
@@ -976,6 +985,7 @@ function [main_trunk_height, trunk_radius, primary_branch_counter] = segmentatio
         if sum(shortest_path_distance) == 0
             disp(['Branch ' num2str(j) ' Not Found Any Valid Shortest Path in Primary Branch Identification']);
             invalid_primary_branches = [invalid_primary_branches, j];
+            continue
         end
         primary_branch_counter = primary_branch_counter + 1;
         [~, max_weight_idx] = max(shortest_path_distance);
@@ -1126,7 +1136,7 @@ function [main_trunk_height, trunk_radius, primary_branch_counter] = segmentatio
         %% build kdtree and retrieve branch surface points
         kdtree = KDTreeSearcher(original_pt_normalized_location);
 
-        for i = 1:branch_counter
+        for i = 1:primary_branch_counter
             if any(invalid_primary_branches == i)
                 continue
             end
