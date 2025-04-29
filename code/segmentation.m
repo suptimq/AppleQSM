@@ -649,6 +649,12 @@ function [main_trunk_height, trunk_radius, primary_branch_counter] = segmentatio
     disp(['subgraph refine mode: ' branch_mode]);
     disp(['subgraph edge coefficient alpha2: ' num2str(coefficient_density_weight)]);
 
+    if isfield(options.SEG_PARA.branch, 'branch_MST_min_length')
+        branch_MST_min_length = options.SEG_PARA.branch.branch_MST_min_length;
+    else
+        branch_MST_min_length = 3;
+    end
+
     branch_counter = 0;
     branch_pts_idx = {}; % index in terms of P.spls
     valid_cluster_pts_cell = {}; % valid branch root clusters
@@ -705,7 +711,7 @@ function [main_trunk_height, trunk_radius, primary_branch_counter] = segmentatio
         [MST_max_length, MST_max_idx] = max(MSTs_length);
 
         % points are not connected in MST
-        if MST_max_length <= 3
+        if MST_max_length <= branch_MST_min_length
             disp(['===================SKIP BRNACH ' num2str(i) ' Due to MST <= 3 ', num2str(MST_max_length), ' ==================='])
             continue
         end
