@@ -1,4 +1,10 @@
-function [segment_vectors, vertical_angle, N] = find_branch_angle(trunk_internode, trunk_radius, trunk_vector, primary_spline_pts, N)
+function [segment_vectors, vertical_angle, N] = find_branch_angle(trunk_internode, trunk_radius, trunk_vector, primary_spline_pts, options)
+
+    N = options.CHAR_PARA.angle_K;
+
+    min_samples = options.CHAR_PARA.branch_vec_ransac_min_sample; 
+    residual_threshold = options.CHAR_PARA.branch_vec_ransac_threshold; 
+    max_trials = options.CHAR_PARA.branch_vec_ransac_trials;
 
     % filter out branch skeleton points that are within trunk
     uniform_xyz_distance = pdist2(primary_spline_pts, double(trunk_internode));
@@ -12,7 +18,7 @@ function [segment_vectors, vertical_angle, N] = find_branch_angle(trunk_internod
     end
 
     % fit branch segment vector
-    min_samples = 3; residual_threshold = 0.015; max_trials = 1e3;
+    % min_samples = 3; residual_threshold = 0.015; max_trials = 1e3;
     segment_pts = sliding_window(primary_spline_pts_outside, 1, 4, 1);
     num_segment = size(segment_pts, 1);
     segment_vectors = zeros(num_segment, 6);

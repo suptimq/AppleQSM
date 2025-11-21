@@ -712,7 +712,7 @@ function [main_trunk_height, trunk_radius, primary_branch_counter] = segmentatio
 
         % points are not connected in MST
         if MST_max_length <= branch_MST_min_length
-            disp(['===================SKIP BRNACH ' num2str(i) ' Due to MST <= 3 ', num2str(MST_max_length), ' ==================='])
+            disp(['===================SKIP BRNACH ' num2str(i) ' Due to MST <= ', num2str(branch_MST_min_length), ' ', num2str(MST_max_length), ' ==================='])
             continue
         end
 

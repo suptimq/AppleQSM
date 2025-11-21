@@ -81,7 +81,7 @@ function [T, branch_fig_gcf] = branch_trait(seg_folder, output_folder, tree_id, 
         index = start + 1:start + primary_branch_pts_size;
         primary_branch_pts = P.primary_branch_center(index, :);
         primary_branch_pts_radius = P.primary_branch_radius(index);
-        primary_branch_pts_radius(primary_branch_pts_radius > P.trunk_radius / 2) = NaN;
+        % primary_branch_pts_radius(primary_branch_pts_radius > P.trunk_radius / 2) = NaN;
 
         % find the internode
         [sliced_main_trunk_pts, row, col] = find_internode(double(primary_branch_pts), double(trunk_skeleton_pts), 0.2);
@@ -123,7 +123,9 @@ function [T, branch_fig_gcf] = branch_trait(seg_folder, output_folder, tree_id, 
 
         % fit trunk vector - only use trunk points that are close to the
         % internode
-        min_samples = 3; residual_threshold = 0.005; max_trials = 1e3;
+        min_samples = options.CHAR_PARA.ransac_min_sample; 
+        residual_threshold = options.CHAR_PARA.ransac_threshold; 
+        max_trials = options.CHAR_PARA.ransac_trials;
         [v1, inliers, ~] = ransac_py(sliced_main_trunk_pts, '3D_Line', min_samples, residual_threshold, max_trials);
 
         if v1(end) < 0
@@ -134,8 +136,7 @@ function [T, branch_fig_gcf] = branch_trait(seg_folder, output_folder, tree_id, 
         sliced_main_trunk_pts_outlier = sliced_main_trunk_pts(inliers ~= 1, :);
 
         % angle
-        N = options.CHAR_PARA.angle_K;
-        [segment_vectors, vertical_angle, N] = find_branch_angle(trunk_internode, trunk_radius, v1, primary_spline_pts, N);
+        [segment_vectors, vertical_angle, N] = find_branch_angle(trunk_internode, trunk_radius, v1, primary_spline_pts, options);
 
         if isempty(segment_vectors)
             vertical_angle = NaN;            

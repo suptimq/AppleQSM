@@ -138,6 +138,16 @@ characterization: {
   # this # might impact the accuracy (need to tune experimentally)
   diameter_K: 4,
   angle_K: 4,
+
+  # fit trunk line parameters
+  ransac_min_sample: 3,
+  ransac_threshold: 0.005,
+  ransac_trials: 1000,
+  # fit branch segment line parameters
+  branch_vec_ransac_min_sample: 3,
+  branch_vec_ransac_threshold: 0.015,
+  branch_vec_ransac_trials: 1000,
+
   options: {
     SHOW: True,                   # plot the branch number
     SHOW_BRANCH: False,            # plot the single branch characterization
